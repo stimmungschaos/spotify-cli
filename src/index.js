@@ -79,18 +79,13 @@ async function authenticate() {
     const server = http.createServer(async (req, res) => {
       const parsedUrl = url.parse(req.url, true);
       
-      // Hier müssen wir ALLE möglichen Callback-Pfade abfangen
-      if (parsedUrl.pathname === '/oauth/spotify/callback' || 
-          parsedUrl.pathname === '/callback' || 
-          parsedUrl.pathname.includes('callback')) {
-        const { code } = parsedUrl.query;
-        
+      if (parsedUrl.pathname.includes('callback')) {
+        // Nach erfolgreicher Auth, hole Tokens vom Server
         try {
-          const data = await spotifyApi.authorizationCodeGrant(code);
-          const tokens = {
-            accessToken: data.body['access_token'],
-            refreshToken: data.body['refresh_token']
-          };
+          const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
+          if (!response.ok) throw new Error('Tokens not found');
+          
+          const tokens = await response.json();
           await saveTokens(tokens);
           
           spotifyApi.setAccessToken(tokens.accessToken);
@@ -112,14 +107,9 @@ async function authenticate() {
           server.close();
           resolve();
         } catch (error) {
-          console.error('Auth Error:', error);
+          console.error('Token retrieval error:', error);
           reject(error);
         }
-      } else {
-        // Log für Debug-Zwecke
-        console.log('Received request for path:', parsedUrl.pathname);
-        res.writeHead(404);
-        res.end('Not Found');
       }
     });
 
