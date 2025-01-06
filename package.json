@@ -1,0 +1,30 @@
+{
+  "name": "spotify-cli",
+  "version": "1.0.0",
+  "description": "Ein CLI-Tool für Spotify",
+  "main": "src/index.js",
+  "type": "module",
+  "bin": {
+    "spotify-cli": "./dist/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "build": "ncc build src/index.js -o dist --target es2020 && chmod +x dist/index.js",
+    "package": "mkdir -p debian/DEBIAN debian/usr/bin && cp dist/* debian/usr/bin/ && chmod +x debian/usr/bin/* && dpkg-deb --build debian && mv debian.deb spotify-cli_1.0.0_amd64.deb",
+    "auth": "cd spotify-cli-auth && npm run dev"
+  },
+  "dependencies": {
+    "boxen": "^7.1.1",
+    "chalk": "^5.4.1",
+    "cli-table3": "^0.6.5",
+    "commander": "^13.0.0",
+    "dotenv": "^16.4.7",
+    "formidable": "^3.5.2",
+    "open": "^10.1.0",
+    "spotify-web-api-node": "^5.0.2"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.3",
+    "pkg-fetch": "^3.5.2"
+  }
+}
