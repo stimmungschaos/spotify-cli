@@ -82,22 +82,31 @@ async function authenticate() {
       
       if (parsedUrl.pathname.includes('callback')) {
         try {
-          // Warte kurz, damit der Server die Tokens speichern kann
+          console.log('=== CLI DEBUG ===');
+          console.log('1. Callback erhalten, warte 1 Sekunde...');
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          console.log('Versuche Tokens vom Server zu holen...');
+          console.log('2. Versuche Tokens abzurufen von:', 'https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
           const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
+          console.log('3. Server-Antwort Status:', response.status);
           
           if (!response.ok) {
-            console.error('Server antwortet:', response.status, response.statusText);
+            console.error('4. Fehler - Server antwortet:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.error('5. Fehler-Details:', errorText);
             throw new Error('Tokens not found');
           }
           
           const tokens = await response.json();
-          console.log('Tokens erfolgreich vom Server geholt');
+          console.log('4. Tokens erfolgreich empfangen');
           
-          await saveTokens(tokens);
-          console.log('Tokens lokal gespeichert');
+          try {
+            await saveTokens(tokens);
+            console.log('5. Tokens lokal gespeichert in:', TOKEN_PATH);
+          } catch (saveError) {
+            console.error('5. Fehler beim lokalen Speichern:', saveError);
+            throw saveError;
+          }
           
           spotifyApi.setAccessToken(tokens.accessToken);
           spotifyApi.setRefreshToken(tokens.refreshToken);

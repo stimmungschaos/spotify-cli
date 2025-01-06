@@ -24,10 +24,18 @@ export async function GET(request: NextRequest) {
       refreshToken: data.body['refresh_token']
     };
 
-    // Tokens im /tmp Verzeichnis speichern
+    // Debug: Token-Speicherung
+    console.log('=== SERVER DEBUG ===');
+    console.log('1. Token erhalten von Spotify');
+    
     const tmpPath = '/tmp/.spotify-cli-tokens.json';
-    fs.writeFileSync(tmpPath, JSON.stringify(tokens, null, 2));
-    console.log('Tokens im /tmp gespeichert:', tmpPath);
+    try {
+      fs.writeFileSync(tmpPath, JSON.stringify(tokens, null, 2));
+      console.log('2. Tokens in', tmpPath, 'gespeichert');
+      console.log('3. Token-Inhalt:', fs.readFileSync(tmpPath, 'utf8'));
+    } catch (fsError) {
+      console.error('Fehler beim Speichern:', fsError);
+    }
 
     return new Response(`
       <!DOCTYPE html>
