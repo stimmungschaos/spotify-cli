@@ -78,7 +78,7 @@ async function authenticate() {
   // Wenn keine Tokens vorhanden oder ungültig, neue Authentifizierung
   return new Promise((resolve, reject) => {
     console.log('=== CLI DEBUG ===');
-    console.log('1. Starte lokalen Server auf Port 8021');
+    console.log('1. Starte lokalen Server auf Port 8022');
     
     const server = http.createServer(async (req, res) => {
       const parsedUrl = url.parse(req.url, true);
@@ -137,8 +137,8 @@ async function authenticate() {
       }
     });
 
-    server.listen(8021, async () => {
-      console.log('8. Server läuft auf Port 8021');
+    server.listen(8022, async () => {
+      console.log('8. Server läuft auf Port 8022');
       const scopes = [
         'user-read-playback-state',
         'user-modify-playback-state',
@@ -151,7 +151,7 @@ async function authenticate() {
       ];
       
       // Temporär die Redirect URI für die Auth ändern
-      spotifyApi.setRedirectURI('http://localhost:8021/local-callback');
+      spotifyApi.setRedirectURI('http://localhost:8022/local-callback');
       const authorizeURL = spotifyApi.createAuthorizeURL(scopes, 'state');
       console.log('9. Öffne Auth URL:', authorizeURL);
       await open(authorizeURL);
