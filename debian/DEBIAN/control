@@ -1,0 +1,11 @@
+Package: spotify-cli
+Version: 1.0.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: Linus <deine.email@example.com>
+Description: Ein CLI-Tool für Spotify
+ Ermöglicht die Steuerung von Spotify über die Kommandozeile
+ mit Funktionen wie Play, Pause, Skip und mehr.
+Depends: nodejs (>= 20.0.0)
+
