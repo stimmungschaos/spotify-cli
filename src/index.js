@@ -80,13 +80,16 @@ async function authenticate() {
       const parsedUrl = url.parse(req.url, true);
       
       if (parsedUrl.pathname.includes('callback')) {
-        // Nach erfolgreicher Auth, hole Tokens vom Server
         try {
+          // Warte kurz, damit der Server die Tokens speichern kann
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Hole Tokens vom Server
           const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
           if (!response.ok) throw new Error('Tokens not found');
           
           const tokens = await response.json();
-          await saveTokens(tokens);
+          await saveTokens(tokens); // Speichere Tokens lokal
           
           spotifyApi.setAccessToken(tokens.accessToken);
           spotifyApi.setRefreshToken(tokens.refreshToken);
@@ -126,8 +129,6 @@ async function authenticate() {
       ];
       
       const authorizeURL = spotifyApi.createAuthorizeURL(scopes, 'state');
-      console.log('Auth URL:', authorizeURL);
-      console.log('Öffne Browser zur Authentifizierung...');
       await open(authorizeURL);
     });
   });
