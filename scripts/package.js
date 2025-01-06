@@ -4,6 +4,16 @@ import path from 'path';
 
 if (process.platform === 'win32') {
   // Windows-spezifische Befehle
+  fs.writeFileSync('bin/spotify-cli-win/install.bat', `
+@echo off
+set INSTALL_DIR=%LOCALAPPDATA%\\spotify-cli
+mkdir "%INSTALL_DIR%" 2>nul
+copy /Y index.js "%INSTALL_DIR%"
+copy /Y spotify-cli.cmd "%INSTALL_DIR%"
+setx PATH "%PATH%;%INSTALL_DIR%"
+echo Installation abgeschlossen! Bitte starten Sie Ihre Kommandozeile neu.
+pause
+  `.trim());
   execSync('if not exist bin\\spotify-cli-win mkdir bin\\spotify-cli-win');
   fs.copyFileSync('dist/index.js', 'bin/spotify-cli-win/index.js');
   fs.writeFileSync('bin/spotify-cli-win/spotify-cli.cmd', '@node "%~dp0index.js" %*');
