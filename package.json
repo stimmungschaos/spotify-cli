@@ -9,8 +9,9 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "build": "ncc build src/index.js -o dist --target es2020 && chmod +x dist/index.js",
-    "package": "mkdir -p debian/DEBIAN debian/usr/bin && cp dist/* debian/usr/bin/ && chmod +x debian/usr/bin/* && dpkg-deb --build debian && mv debian.deb spotify-cli_1.0.0_amd64.deb",
+    "build": "ncc build src/index.js -o dist --target es2020",
+    "postbuild": "node scripts/post-build.js",
+    "package": "node scripts/package.js",
     "auth": "cd spotify-cli-auth && npm run dev"
   },
   "dependencies": {
@@ -20,13 +21,13 @@
     "commander": "^13.0.0",
     "dotenv": "^16.4.7",
     "formidable": "^3.5.2",
+    "node-fetch": "^3.3.0",
     "open": "^10.1.0",
     "spotify-web-api-node": "^5.0.2",
-    "node-fetch": "^3.3.0"
+    "yargs": "^17.7.2",
+    "yargs-parser": "^21.1.1"
   },
   "devDependencies": {
-    "@vercel/ncc": "^0.38.3",
-    "pkg-fetch": "^3.5.2"
+    "@vercel/ncc": "^0.38.3"
   }
 }
-

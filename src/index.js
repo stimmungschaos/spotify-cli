@@ -24,7 +24,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Token-Datei im Home-Verzeichnis
-const TOKEN_PATH = path.join(process.env.HOME || process.env.USERPROFILE, '.spotify-cli-tokens.json');
+const TOKEN_PATH = path.join(
+  process.env.APPDATA || process.env.HOME || process.env.USERPROFILE,
+  '.spotify-cli-tokens.json'
+);
 
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
