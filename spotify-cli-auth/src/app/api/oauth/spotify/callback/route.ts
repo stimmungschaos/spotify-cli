@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import SpotifyWebApi from 'spotify-web-api-node';
 import fs from 'fs';
-import path from 'path';
 
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,

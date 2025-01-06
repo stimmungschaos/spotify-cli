@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import fs from 'fs';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   console.log('=== TOKEN ENDPOINT DEBUG ===');
   console.log('1. Token-Anfrage erhalten');
   
