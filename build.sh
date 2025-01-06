@@ -43,4 +43,4 @@ mv debian.deb spotify-cli_1.0.0_amd64.deb
 # Package Install
 
 sudo dpkg --force-depends -i spotify-cli_1.0.0_amd64.deb 
-echo "Build complete! You can install the package with: sudo dpkg -i spotify-cli_1.0.0_amd64.deb" 
+echo "Build & Install  complete!" 
