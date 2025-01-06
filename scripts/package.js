@@ -1,12 +1,13 @@
 import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 
 if (process.platform === 'win32') {
-  // Windows portable package
-  execSync('mkdir -p bin/spotify-cli-win');
-  execSync('cp dist/index.js bin/spotify-cli-win/');
-  execSync('echo @node "%~dp0index.js" %* > bin/spotify-cli-win/spotify-cli.cmd');
-  // ZIP erstellen
-  execSync('powershell Compress-Archive -Path bin/spotify-cli-win/* -DestinationPath spotify-cli-win.zip -Force');
+  // Windows-spezifische Befehle
+  execSync('if not exist bin\\spotify-cli-win mkdir bin\\spotify-cli-win');
+  fs.copyFileSync('dist/index.js', 'bin/spotify-cli-win/index.js');
+  fs.writeFileSync('bin/spotify-cli-win/spotify-cli.cmd', '@node "%~dp0index.js" %*');
+  execSync('powershell Compress-Archive -Force -Path ".\\bin\\spotify-cli-win\\*" -DestinationPath ".\\spotify-cli-win.zip"');
 } else {
   // Linux Build
   execSync('mkdir -p debian/DEBIAN debian/usr/bin');
