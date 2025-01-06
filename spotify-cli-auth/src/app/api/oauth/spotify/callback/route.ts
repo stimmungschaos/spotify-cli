@@ -24,9 +24,23 @@ export async function GET(request: NextRequest) {
       refreshToken: data.body['refresh_token']
     };
 
+    // Debug-Ausgaben
+    console.log('Tokens erhalten:', tokens);
+    
     // Tokens in der Home-Directory des Users speichern
     const tokenPath = path.join(process.env.HOME || process.env.USERPROFILE || '', '.spotify-cli-tokens.json');
-    fs.writeFileSync(tokenPath, JSON.stringify(tokens, null, 2));
+    console.log('Versuche Tokens zu speichern in:', tokenPath);
+    
+    try {
+      fs.writeFileSync(tokenPath, JSON.stringify(tokens, null, 2));
+      console.log('Tokens erfolgreich gespeichert');
+    } catch (fsError) {
+      console.error('Fehler beim Speichern der Tokens:', fsError);
+      // Versuche es im /tmp Verzeichnis
+      const tmpPath = '/tmp/.spotify-cli-tokens.json';
+      console.log('Versuche alternativ in:', tmpPath);
+      fs.writeFileSync(tmpPath, JSON.stringify(tokens, null, 2));
+    }
 
     return new Response(`
       <!DOCTYPE html>
@@ -49,6 +63,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Auth Error:', error);
-    return new Response('Authentication failed', { status: 500 });
+    return new Response('Authentication failed: ' + error.message, { status: 500 });
   }
 } 
