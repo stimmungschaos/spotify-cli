@@ -24,24 +24,16 @@ export async function GET(request: NextRequest) {
       refreshToken: data.body['refresh_token']
     };
 
-    // Debug: Token-Speicherung
-    console.log('=== SERVER DEBUG ===');
-    console.log('1. Token erhalten von Spotify');
-    
+    // Tokens im /tmp Verzeichnis speichern
     const tmpPath = '/tmp/.spotify-cli-tokens.json';
-    try {
-      fs.writeFileSync(tmpPath, JSON.stringify(tokens, null, 2));
-      console.log('2. Tokens in', tmpPath, 'gespeichert');
-      console.log('3. Token-Inhalt:', fs.readFileSync(tmpPath, 'utf8'));
-    } catch (fsError) {
-      console.error('Fehler beim Speichern:', fsError);
-    }
+    fs.writeFileSync(tmpPath, JSON.stringify(tokens, null, 2));
 
     return new Response(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Spotify CLI Auth</title>
+          <meta charset="UTF-8">
           <script src="https://cdn.tailwindcss.com"></script>
           <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
         </head>
@@ -77,7 +69,7 @@ export async function GET(request: NextRequest) {
       </html>
     `, {
       headers: {
-        'Content-Type': 'text/html',
+        'Content-Type': 'text/html; charset=utf-8'
       },
     });
   } catch (error) {
