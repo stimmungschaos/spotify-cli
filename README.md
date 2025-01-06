@@ -39,5 +39,6 @@ Oder Selber kompilieren:
 - Wenn nicht authentifiziert, wird ein Browser-Fenster zur Spotify-Authentifizierung geöffnet.
 - Wenn die Authentifizierung erfolgreich ist, werden die Tokens gespeichert und man kann Anfangen die Befehle zu verwenden. 
 
+- Zusatzinfos findest du auf https://spotify-cli.chaosly.de
 
 
