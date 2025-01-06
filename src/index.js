@@ -84,8 +84,8 @@ async function authenticate() {
       const parsedUrl = url.parse(req.url, true);
       console.log('2. Eingehende Anfrage:', parsedUrl.pathname);
       
-      if (parsedUrl.pathname === '/local-callback') {
-        console.log('3. Local Callback erhalten');
+      if (parsedUrl.pathname === '/oauth/spotify/callback') {
+        console.log('3. Callback erhalten');
         try {
           console.log('4. Versuche Tokens abzurufen');
           const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
@@ -150,8 +150,8 @@ async function authenticate() {
         'playlist-modify-private'
       ];
       
-      // Temporär die Redirect URI für die Auth ändern
-      spotifyApi.setRedirectURI('http://localhost:8022/local-callback');
+      // Original Redirect URI beibehalten
+      spotifyApi.setRedirectURI('https://spotify-cli.chaosly.de/oauth/spotify/callback');
       const authorizeURL = spotifyApi.createAuthorizeURL(scopes, 'state');
       console.log('9. Öffne Auth URL:', authorizeURL);
       await open(authorizeURL);
