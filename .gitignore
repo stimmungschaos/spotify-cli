@@ -1,0 +1,44 @@
+# Environment variables
+.env
+*/.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules
+*/node_modules
+
+# Build outputs
+dist
+*/dist
+build
+*/build
+.next
+*/.next
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+debug.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE/Editor folders
+.idea
+.vscode
+*.swp
+*.swo
+
+# Temporary files
+*.log
+.cache
+tmp
+/tmp
+*.tmp
+
+# Local tokens and credentials
+.spotify-cli-tokens.json
+*/.spotify-cli-tokens.json 
