@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import SpotifyWebApi from 'spotify-web-api-node';
+import fs from 'fs';
+import path from 'path';
 
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
@@ -22,22 +24,31 @@ export async function GET(request: NextRequest) {
       refreshToken: data.body['refresh_token']
     };
 
-    // Hier können wir die Tokens speichern oder an das CLI weiterleiten
-    
-    // Redirect zur Erfolgsseite
-    return new Response(null, {
-      status: 302,
+    // Tokens in der Home-Directory des Users speichern
+    const tokenPath = path.join(process.env.HOME || process.env.USERPROFILE || '', '.spotify-cli-tokens.json');
+    fs.writeFileSync(tokenPath, JSON.stringify(tokens, null, 2));
+
+    return new Response(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Authentifizierung erfolgreich</title>
+        </head>
+        <body>
+          <h1>Authentifizierung erfolgreich!</h1>
+          <p>Sie können diese Seite nun schließen.</p>
+          <script>
+            setTimeout(() => window.close(), 3000);
+          </script>
+        </body>
+      </html>
+    `, {
       headers: {
-        'Location': '/',
+        'Content-Type': 'text/html',
       },
     });
   } catch (error) {
     console.error('Auth Error:', error);
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': '/error',
-      },
-    });
+    return new Response('Authentication failed', { status: 500 });
   }
 } 

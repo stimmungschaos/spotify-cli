@@ -123,7 +123,7 @@ async function authenticate() {
       }
     });
 
-    server.listen(8020, async () => {
+    server.listen(8021, async () => {
       const scopes = [
         'user-read-playback-state',
         'user-modify-playback-state',
