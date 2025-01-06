@@ -80,61 +80,37 @@ async function authenticate() {
     console.log('=== CLI DEBUG ===');
     console.log('1. Starte lokalen Server auf Port 8022');
     
-    const server = http.createServer(async (req, res) => {
-      const parsedUrl = url.parse(req.url, true);
-      console.log('2. Eingehende Anfrage:', parsedUrl.pathname);
-      
-      if (parsedUrl.pathname === '/oauth/spotify/callback') {
-        console.log('3. Callback erhalten');
-        try {
-          console.log('4. Versuche Tokens abzurufen');
-          const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
-          console.log('5. Server-Antwort Status:', response.status);
-          
-          if (!response.ok) {
-            console.error('6. Fehler - Server antwortet:', response.status, response.statusText);
-            const errorText = await response.text();
-            console.error('7. Fehler-Details:', errorText);
-            throw new Error('Tokens not found');
-          }
-          
-          const tokens = await response.json();
-          console.log('6. Tokens erfolgreich empfangen');
-          
-          try {
-            await saveTokens(tokens);
-            console.log('7. Tokens lokal gespeichert in:', TOKEN_PATH);
-          } catch (saveError) {
-            console.error('7. Fehler beim lokalen Speichern:', saveError);
-            throw saveError;
-          }
-          
-          spotifyApi.setAccessToken(tokens.accessToken);
-          spotifyApi.setRefreshToken(tokens.refreshToken);
-          
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>CLI Auth erfolgreich</title>
-              </head>
-              <body>
-                <h1>CLI Authentifizierung erfolgreich!</h1>
-                <p>Sie können diese Seite nun schließen.</p>
-                <script>
-                  window.close();
-                </script>
-              </body>
-            </html>
-          `);
-          server.close();
-          resolve();
-        } catch (error) {
-          console.error('Fehler:', error);
-          reject(error);
+    const checkForTokens = async () => {
+      try {
+        console.log('4. Prüfe auf neue Tokens...');
+        const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
+        console.log('5. Server-Antwort Status:', response.status);
+        
+        if (!response.ok) {
+          throw new Error('Tokens not found');
         }
+        
+        const tokens = await response.json();
+        console.log('6. Tokens erfolgreich empfangen');
+        
+        await saveTokens(tokens);
+        console.log('7. Tokens lokal gespeichert in:', TOKEN_PATH);
+        
+        spotifyApi.setAccessToken(tokens.accessToken);
+        spotifyApi.setRefreshToken(tokens.refreshToken);
+        
+        server.close();
+        resolve();
+      } catch (error) {
+        // Wenn keine Tokens gefunden, warten und erneut versuchen
+        console.log('Warte auf Tokens...');
+        setTimeout(checkForTokens, 1000);
       }
+    };
+
+    const server = http.createServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('Auth läuft, bitte warten...');
     });
 
     server.listen(8022, async () => {
@@ -150,11 +126,13 @@ async function authenticate() {
         'playlist-modify-private'
       ];
       
-      // Original Redirect URI beibehalten
       spotifyApi.setRedirectURI('https://spotify-cli.chaosly.de/oauth/spotify/callback');
       const authorizeURL = spotifyApi.createAuthorizeURL(scopes, 'state');
       console.log('9. Öffne Auth URL:', authorizeURL);
       await open(authorizeURL);
+      
+      // Starte Token-Polling
+      setTimeout(checkForTokens, 1000);
     });
   });
 }
