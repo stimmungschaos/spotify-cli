@@ -14,6 +14,7 @@ import { createRequire } from 'module';
 import chalk from 'chalk';
 import boxen from 'boxen';
 import Table from 'cli-table3';
+import fetch from 'node-fetch';
 
 const require = createRequire(import.meta.url);
 
@@ -84,12 +85,19 @@ async function authenticate() {
           // Warte kurz, damit der Server die Tokens speichern kann
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Hole Tokens vom Server
+          console.log('Versuche Tokens vom Server zu holen...');
           const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
-          if (!response.ok) throw new Error('Tokens not found');
+          
+          if (!response.ok) {
+            console.error('Server antwortet:', response.status, response.statusText);
+            throw new Error('Tokens not found');
+          }
           
           const tokens = await response.json();
-          await saveTokens(tokens); // Speichere Tokens lokal
+          console.log('Tokens erfolgreich vom Server geholt');
+          
+          await saveTokens(tokens);
+          console.log('Tokens lokal gespeichert');
           
           spotifyApi.setAccessToken(tokens.accessToken);
           spotifyApi.setRefreshToken(tokens.refreshToken);

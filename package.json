@@ -21,10 +21,12 @@
     "dotenv": "^16.4.7",
     "formidable": "^3.5.2",
     "open": "^10.1.0",
-    "spotify-web-api-node": "^5.0.2"
+    "spotify-web-api-node": "^5.0.2",
+    "node-fetch": "^3.3.0"
   },
   "devDependencies": {
     "@vercel/ncc": "^0.38.3",
     "pkg-fetch": "^3.5.2"
   }
 }
+
