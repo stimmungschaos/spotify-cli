@@ -10,15 +10,15 @@ Features:
 - Designter Terminal Output
 
 Installation:
-curl -o spotify-cli_1.0.0_amd64.deb https://github.com/stimmungschaos/spotify-cli/releases/download/Beta/spotify-cli_1.0.0_amd64.deb
-sudo dpkg --force-depends -i spotify-cli_1.0.0_amd64.deb
-rm spotify-cli_1.0.0_amd64.deb
+- curl -o spotify-cli_1.0.0_amd64.deb https://github.com/stimmungschaos/spotify-cli/releases/download/Beta/spotify-cli_1.0.0_amd64.deb
+- sudo dpkg --force-depends -i spotify-cli_1.0.0_amd64.deb
+- rm spotify-cli_1.0.0_amd64.deb
 
 Oder Selber kompilieren: 
-git clone https://github.com/stimmungschaos/spotify-cli.git
-cd spotify-cli
-npm i
-./build.sh 
+- git clone https://github.com/stimmungschaos/spotify-cli.git
+- cd spotify-cli
+- npm i
+- ./build.sh 
 
 
 Verwendung:
