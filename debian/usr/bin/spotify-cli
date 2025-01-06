@@ -1,2 +1,0 @@
-#!/bin/bash
-NODE_PATH=/usr/bin node --experimental-json-modules --no-deprecation /usr/bin/index.js "$@"
