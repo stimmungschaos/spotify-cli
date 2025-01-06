@@ -2,6 +2,7 @@
 
 # Cleanup
 rm -rf dist debian spotify-cli_1.0.0_amd64.deb
+sudo dpkg -r spotify-cli 
 
 # Build
 npm run build
@@ -23,7 +24,7 @@ Version: 1.0.0
 Section: utils
 Priority: optional
 Architecture: amd64
-Maintainer: Linus <deine.email@example.com>
+Maintainer: Linus <stimmungschaos@chaosly.de>
 Description: Ein CLI-Tool für Spotify
  Ermöglicht die Steuerung von Spotify über die Kommandozeile
  mit Funktionen wie Play, Pause, Skip und mehr.
