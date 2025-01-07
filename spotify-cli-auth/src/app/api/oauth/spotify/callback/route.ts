@@ -1,12 +1,18 @@
 import { NextRequest } from 'next/server';
 import SpotifyWebApi from 'spotify-web-api-node';
 import fs from 'fs';
+import crypto from 'crypto';
 
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
   redirectUri: process.env.REDIRECT_URI
 });
+
+// Generiere Session-Token
+const generateSessionToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -23,9 +29,15 @@ export async function GET(request: NextRequest) {
       refreshToken: data.body['refresh_token']
     };
 
-    // Tokens im /tmp Verzeichnis speichern
-    const tmpPath = '/tmp/.spotify-cli-tokens.json';
-    fs.writeFileSync(tmpPath, JSON.stringify(tokens, null, 2));
+    // Generiere und speichere Session-Token
+    const sessionToken = generateSessionToken();
+    const tokenData = {
+      sessionToken,
+      spotifyTokens: tokens,
+      timestamp: Date.now()
+    };
+
+    fs.writeFileSync('/tmp/.spotify-cli-tokens.json', JSON.stringify(tokenData));
 
     return new Response(`
       <!DOCTYPE html>
@@ -62,6 +74,11 @@ export async function GET(request: NextRequest) {
           </div>
 
           <script>
+            // Übergebe Session-Token an CLI
+            window.opener.postMessage({ 
+              type: 'SPOTIFY_AUTH_SUCCESS',
+              sessionToken: '${sessionToken}'
+            }, '*');
             setTimeout(() => window.close(), 3000);
           </script>
         </body>

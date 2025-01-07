@@ -95,64 +95,52 @@ async function withTokenRefresh(apiCall) {
 
 // Authentifizierungs-Funktion
 async function authenticate() {
-  // Versuche zuerst gespeicherte Tokens zu laden
   const tokens = await loadTokens();
   if (tokens) {
     spotifyApi.setAccessToken(tokens.accessToken);
     spotifyApi.setRefreshToken(tokens.refreshToken);
     
-    // Versuche Token zu erneuern
     if (await refreshAccessToken()) {
       return;
     }
   }
 
-  // Wenn keine Tokens vorhanden oder ungültig, neue Authentifizierung
   return new Promise((resolve, reject) => {
-    const checkForTokens = async () => {
-      try {
-        const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
+    let sessionToken = null;
+
+    const messageHandler = async (event) => {
+      if (event.data.type === 'SPOTIFY_AUTH_SUCCESS') {
+        sessionToken = event.data.sessionToken;
         
-        if (!response.ok) {
-          throw new Error('Tokens not found');
+        try {
+          const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionToken })
+          });
+          
+          if (!response.ok) {
+            throw new Error('Token retrieval failed');
+          }
+          
+          const tokens = await response.json();
+          await saveTokens(tokens);
+          
+          spotifyApi.setAccessToken(tokens.accessToken);
+          spotifyApi.setRefreshToken(tokens.refreshToken);
+          
+          window.removeEventListener('message', messageHandler);
+          server.close();
+          resolve();
+        } catch (error) {
+          reject(error);
         }
-        
-        const tokens = await response.json();
-        await saveTokens(tokens);
-        
-        spotifyApi.setAccessToken(tokens.accessToken);
-        spotifyApi.setRefreshToken(tokens.refreshToken);
-        
-        server.close();
-        resolve();
-      } catch (error) {
-        setTimeout(checkForTokens, 1000);
       }
     };
 
-    const server = http.createServer((req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end('Auth läuft, bitte warten...');
-    });
-
-    server.listen(8022, async () => {
-      const scopes = [
-        'user-read-playback-state',
-        'user-modify-playback-state',
-        'user-read-currently-playing',
-        'user-library-read',
-        'user-library-modify',
-        'playlist-read-private',
-        'playlist-modify-public',
-        'playlist-modify-private'
-      ];
-      
-      spotifyApi.setRedirectURI('https://spotify-cli.chaosly.de/oauth/spotify/callback');
-      const authorizeURL = spotifyApi.createAuthorizeURL(scopes, 'state');
-      await open(authorizeURL);
-      
-      setTimeout(checkForTokens, 1000);
-    });
+    window.addEventListener('message', messageHandler);
+    
+    // ... Rest des Auth-Codes ...
   });
 }
 

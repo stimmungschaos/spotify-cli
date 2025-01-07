@@ -1,20 +1,46 @@
 import { NextRequest } from 'next/server';
 import fs from 'fs';
+import crypto from 'crypto';
 
-export async function GET() {
-  console.log('=== TOKEN ENDPOINT DEBUG ===');
-  console.log('1. Token-Anfrage erhalten');
+// Generiere einen zufälligen Token für die Session
+const generateSessionToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
+// Speichere Token mit Session-ID
+const saveTokenWithSession = (spotifyTokens: any) => {
+  const sessionToken = generateSessionToken();
+  const data = {
+    sessionToken,
+    spotifyTokens,
+    timestamp: Date.now()
+  };
   
+  fs.writeFileSync('/tmp/.spotify-cli-tokens.json', JSON.stringify(data));
+  return sessionToken;
+};
+
+export async function POST(request: NextRequest) {
   try {
-    const tokens = fs.readFileSync('/tmp/.spotify-cli-tokens.json', 'utf8');
-    console.log('2. Tokens gefunden und werden gesendet');
-    return new Response(tokens, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const { sessionToken } = await request.json();
+    
+    // Lese gespeicherte Tokens
+    const data = JSON.parse(fs.readFileSync('/tmp/.spotify-cli-tokens.json', 'utf8'));
+    
+    // Überprüfe Session-Token und Timestamp (15 Minuten Gültigkeit)
+    if (data.sessionToken !== sessionToken || 
+        Date.now() - data.timestamp > 15 * 60 * 1000) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+
+    // Lösche Token-Datei nach erfolgreichem Abruf
+    fs.unlinkSync('/tmp/.spotify-cli-tokens.json');
+    
+    return new Response(JSON.stringify(data.spotifyTokens), {
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('3. Fehler beim Lesen der Tokens:', error);
-    return new Response('No tokens found', { status: 404 });
+    console.error('Token-Fehler:', error);
+    return new Response('Unauthorized', { status: 401 });
   }
 } 

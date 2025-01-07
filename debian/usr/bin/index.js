@@ -32497,16 +32497,45 @@ async function loadTokens() {
 
 async function refreshAccessToken() {
   try {
+    console.log('Token abgelaufen, versuche zu erneuern...');
     const data = await spotifyApi.refreshAccessToken();
     const tokens = {
       accessToken: data.body['access_token'],
       refreshToken: spotifyApi.getRefreshToken()
     };
+    
+    // Speichere neue Tokens
     await saveTokens(tokens);
+    
+    // Setze neue Tokens
     spotifyApi.setAccessToken(tokens.accessToken);
+    spotifyApi.setRefreshToken(tokens.refreshToken);
+    
     return true;
   } catch (error) {
+    console.error('Token-Erneuerung fehlgeschlagen:', error.message);
+    // Lösche ungültige Tokens
+    try {
+      await external_fs_.promises.unlink(TOKEN_PATH);
+    } catch (e) {
+      // Ignoriere Fehler beim Löschen
+    }
     return false;
+  }
+}
+
+// Wrapper für API-Aufrufe mit automatischer Token-Erneuerung
+async function withTokenRefresh(apiCall) {
+  try {
+    return await apiCall();
+  } catch (error) {
+    if (error.message === 'The access token expired') {
+      if (await refreshAccessToken()) {
+        // Versuche den API-Aufruf erneut
+        return await apiCall();
+      }
+    }
+    throw error;
   }
 }
 
@@ -32612,7 +32641,7 @@ program
   .action(async () => {
     try {
       await authenticate();
-      await spotifyApi.play();
+      await withTokenRefresh(() => spotifyApi.play());
       console.log(formatOutput('Wiedergabe', source.green('▶️ Wiedergabe gestartet')));
     } catch (error) {
       console.error(formatError(error.message));
