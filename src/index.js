@@ -207,7 +207,7 @@ async function authenticate() {
       console.log('Debug: Server läuft auf Port 8022');
       
       // Setze die Redirect URI auf den lokalen Server
-      spotifyApi.setRedirectURI('http://localhost:8022/callback');
+      spotifyApi.setRedirectURI('https://spotify-cli.chaosly.de/oauth/spotify/callback');
       
       const scopes = [
         'user-read-playback-state',
