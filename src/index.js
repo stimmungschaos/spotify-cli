@@ -37,14 +37,27 @@ const spotifyApi = new SpotifyWebApi({
 
 // Token-Management Funktionen
 async function saveTokens(tokens) {
-  await fs.writeFile(TOKEN_PATH, JSON.stringify(tokens, null, 2));
+  try {
+    console.log('Debug: Versuche Tokens zu speichern...');
+    console.log('Debug: Token-Pfad:', TOKEN_PATH);
+    await fs.writeFile(TOKEN_PATH, JSON.stringify(tokens, null, 2));
+    console.log('Debug: Tokens erfolgreich gespeichert');
+    return true;
+  } catch (error) {
+    console.error('Debug: Fehler beim Speichern der Tokens:', error);
+    return false;
+  }
 }
 
 async function loadTokens() {
   try {
+    console.log('Debug: Versuche Tokens zu laden...');
+    console.log('Debug: Token-Pfad:', TOKEN_PATH);
     const data = await fs.readFile(TOKEN_PATH, 'utf8');
+    console.log('Debug: Tokens gefunden');
     return JSON.parse(data);
   } catch (error) {
+    console.error('Debug: Fehler beim Laden der Tokens:', error);
     return null;
   }
 }
@@ -95,40 +108,53 @@ async function withTokenRefresh(apiCall) {
 
 // Authentifizierungs-Funktion
 async function authenticate() {
+  console.log('Debug: Starte Authentifizierung...');
+  
   const tokens = await loadTokens();
   if (tokens) {
+    console.log('Debug: Bestehende Tokens gefunden');
     spotifyApi.setAccessToken(tokens.accessToken);
     spotifyApi.setRefreshToken(tokens.refreshToken);
     
     if (await refreshAccessToken()) {
+      console.log('Debug: Token erfolgreich erneuert');
       return;
     }
   }
 
   return new Promise((resolve, reject) => {
+    console.log('Debug: Starte lokalen Server...');
+    
     const server = http.createServer(async (req, res) => {
       if (req.url?.includes('/callback')) {
+        console.log('Debug: Callback erhalten');
         const urlParams = new URL(req.url, 'http://localhost:8022').searchParams;
         const code = urlParams.get('code');
 
         if (!code) {
+          console.error('Debug: Kein Auth-Code im Callback');
           res.writeHead(400);
           res.end('Kein Auth-Code erhalten');
           return;
         }
 
         try {
-          // Token direkt vom Spotify API holen
+          console.log('Debug: Hole Token von Spotify...');
           const data = await spotifyApi.authorizationCodeGrant(code);
+          console.log('Debug: Token von Spotify erhalten');
+          
           const tokens = {
             accessToken: data.body['access_token'],
             refreshToken: data.body['refresh_token']
           };
 
-          // Tokens lokal speichern
-          await saveTokens(tokens);
+          console.log('Debug: Versuche Tokens zu speichern...');
+          const saved = await saveTokens(tokens);
+          if (!saved) {
+            throw new Error('Tokens konnten nicht gespeichert werden');
+          }
           
-          // Token setzen
+          console.log('Debug: Setze Token für API...');
           spotifyApi.setAccessToken(tokens.accessToken);
           spotifyApi.setRefreshToken(tokens.refreshToken);
 
@@ -136,9 +162,10 @@ async function authenticate() {
           res.end('Authentifizierung erfolgreich! Sie können diese Seite nun schließen.');
           
           server.close();
+          console.log('Debug: Server geschlossen, Auth abgeschlossen');
           resolve();
         } catch (error) {
-          console.error('Auth Error:', error);
+          console.error('Debug: Auth Error:', error);
           res.writeHead(500);
           res.end('Authentifizierung fehlgeschlagen: ' + error.message);
           reject(error);
@@ -150,6 +177,7 @@ async function authenticate() {
     });
 
     server.listen(8022, async () => {
+      console.log('Debug: Server läuft auf Port 8022');
       const scopes = [
         'user-read-playback-state',
         'user-modify-playback-state',
@@ -161,6 +189,7 @@ async function authenticate() {
         'playlist-modify-private'
       ];
       
+      console.log('Debug: Öffne Auth-URL...');
       spotifyApi.setRedirectURI(process.env.REDIRECT_URI);
       const authorizeURL = spotifyApi.createAuthorizeURL(scopes, 'state');
       await open(authorizeURL);
