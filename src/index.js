@@ -108,32 +108,39 @@ async function authenticate() {
   return new Promise((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
       if (req.url?.includes('/callback')) {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end('Authentifizierung erfolgreich! Sie können diese Seite nun schließen.');
-        
+        const urlParams = new URL(req.url, 'http://localhost:8022').searchParams;
+        const code = urlParams.get('code');
+
+        if (!code) {
+          res.writeHead(400);
+          res.end('Kein Auth-Code erhalten');
+          return;
+        }
+
         try {
-          // Warte kurz, damit die Tokens gespeichert werden können
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ timestamp: Date.now() })
-          });
-          
-          if (!response.ok) {
-            throw new Error('Token retrieval failed');
-          }
-          
-          const tokens = await response.json();
+          // Token direkt vom Spotify API holen
+          const data = await spotifyApi.authorizationCodeGrant(code);
+          const tokens = {
+            accessToken: data.body['access_token'],
+            refreshToken: data.body['refresh_token']
+          };
+
+          // Tokens lokal speichern
           await saveTokens(tokens);
           
+          // Token setzen
           spotifyApi.setAccessToken(tokens.accessToken);
           spotifyApi.setRefreshToken(tokens.refreshToken);
+
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end('Authentifizierung erfolgreich! Sie können diese Seite nun schließen.');
           
           server.close();
           resolve();
         } catch (error) {
+          console.error('Auth Error:', error);
+          res.writeHead(500);
+          res.end('Authentifizierung fehlgeschlagen: ' + error.message);
           reject(error);
         }
       } else {
