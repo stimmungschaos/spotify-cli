@@ -154,7 +154,7 @@ async function authenticate() {
         'playlist-modify-private'
       ];
       
-      spotifyApi.setRedirectURI('http://localhost:8022/callback');
+      spotifyApi.setRedirectURI(process.env.REDIRECT_URI);
       const authorizeURL = spotifyApi.createAuthorizeURL(scopes, 'state');
       await open(authorizeURL);
     });
