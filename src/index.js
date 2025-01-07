@@ -106,17 +106,19 @@ async function authenticate() {
   }
 
   return new Promise((resolve, reject) => {
-    let sessionToken = null;
-
-    const messageHandler = async (event) => {
-      if (event.data.type === 'SPOTIFY_AUTH_SUCCESS') {
-        sessionToken = event.data.sessionToken;
+    const server = http.createServer(async (req, res) => {
+      if (req.url?.includes('/callback')) {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end('Authentifizierung erfolgreich! Sie können diese Seite nun schließen.');
         
         try {
+          // Warte kurz, damit die Tokens gespeichert werden können
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
           const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionToken })
+            body: JSON.stringify({ timestamp: Date.now() })
           });
           
           if (!response.ok) {
@@ -129,18 +131,33 @@ async function authenticate() {
           spotifyApi.setAccessToken(tokens.accessToken);
           spotifyApi.setRefreshToken(tokens.refreshToken);
           
-          window.removeEventListener('message', messageHandler);
           server.close();
           resolve();
         } catch (error) {
           reject(error);
         }
+      } else {
+        res.writeHead(404);
+        res.end();
       }
-    };
+    });
 
-    window.addEventListener('message', messageHandler);
-    
-    // ... Rest des Auth-Codes ...
+    server.listen(8022, async () => {
+      const scopes = [
+        'user-read-playback-state',
+        'user-modify-playback-state',
+        'user-read-currently-playing',
+        'user-library-read',
+        'user-library-modify',
+        'playlist-read-private',
+        'playlist-modify-public',
+        'playlist-modify-private'
+      ];
+      
+      spotifyApi.setRedirectURI('http://localhost:8022/callback');
+      const authorizeURL = spotifyApi.createAuthorizeURL(scopes, 'state');
+      await open(authorizeURL);
+    });
   });
 }
 
