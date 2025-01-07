@@ -40,11 +40,26 @@ async function saveTokens(tokens) {
   try {
     console.log('Debug: Versuche Tokens zu speichern...');
     console.log('Debug: Token-Pfad:', TOKEN_PATH);
-    await fs.writeFile(TOKEN_PATH, JSON.stringify(tokens, null, 2));
+    
+    // Stelle sicher, dass das Verzeichnis existiert
+    const tokenDir = path.dirname(TOKEN_PATH);
+    await fs.mkdir(tokenDir, { recursive: true });
+    
+    // Setze Berechtigungen für die Datei
+    await fs.writeFile(TOKEN_PATH, JSON.stringify(tokens, null, 2), {
+      mode: 0o600  // Nur der Besitzer kann lesen und schreiben
+    });
+    
     console.log('Debug: Tokens erfolgreich gespeichert');
+    
+    // Überprüfe, ob die Datei wirklich erstellt wurde
+    const stats = await fs.stat(TOKEN_PATH);
+    console.log('Debug: Token-Datei erstellt mit Berechtigungen:', stats.mode.toString(8));
+    
     return true;
   } catch (error) {
     console.error('Debug: Fehler beim Speichern der Tokens:', error);
+    console.error('Debug: Stack:', error.stack);
     return false;
   }
 }
@@ -53,11 +68,21 @@ async function loadTokens() {
   try {
     console.log('Debug: Versuche Tokens zu laden...');
     console.log('Debug: Token-Pfad:', TOKEN_PATH);
+    
+    // Prüfe ob die Datei existiert
+    try {
+      await fs.access(TOKEN_PATH);
+    } catch {
+      console.log('Debug: Token-Datei existiert nicht');
+      return null;
+    }
+    
     const data = await fs.readFile(TOKEN_PATH, 'utf8');
     console.log('Debug: Tokens gefunden');
     return JSON.parse(data);
   } catch (error) {
     console.error('Debug: Fehler beim Laden der Tokens:', error);
+    console.error('Debug: Stack:', error.stack);
     return null;
   }
 }
