@@ -135,7 +135,6 @@ async function withTokenRefresh(apiCall) {
 async function authenticate() {
   console.log('Debug: Starte Authentifizierung...');
   
-  // Prüfe zuerst auf vorhandene Tokens
   const tokens = await loadTokens();
   if (tokens) {
     console.log('Debug: Bestehende Tokens gefunden');
@@ -149,66 +148,41 @@ async function authenticate() {
   }
 
   return new Promise((resolve, reject) => {
-    console.log('Debug: Starte lokalen Server...');
-    
-    const server = http.createServer(async (req, res) => {
-      if (req.url?.includes('/callback')) {
-        console.log('Debug: Callback erhalten');
-        const urlParams = new URL(req.url, 'http://localhost:8022').searchParams;
-        const code = urlParams.get('code');
-
-        if (!code) {
-          console.error('Debug: Kein Auth-Code im Callback');
-          res.writeHead(400);
-          res.end('Kein Auth-Code erhalten');
+    const checkForTokens = async () => {
+      try {
+        console.log('Debug: Prüfe auf neue Tokens...');
+        const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
+        
+        if (!response.ok) {
+          console.log('Debug: Keine Tokens gefunden, warte...');
+          setTimeout(checkForTokens, 1000);
           return;
         }
-
-        try {
-          console.log('Debug: Hole Token von Spotify...');
-          const data = await spotifyApi.authorizationCodeGrant(code);
-          console.log('Debug: Token von Spotify erhalten');
-          
-          const tokens = {
-            accessToken: data.body['access_token'],
-            refreshToken: data.body['refresh_token']
-          };
-
-          console.log('Debug: Versuche Tokens zu speichern...');
-          const saved = await saveTokens(tokens);
-          if (!saved) {
-            throw new Error('Tokens konnten nicht gespeichert werden');
-          }
-          
-          console.log('Debug: Setze Token für API...');
-          spotifyApi.setAccessToken(tokens.accessToken);
-          spotifyApi.setRefreshToken(tokens.refreshToken);
-
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end('Authentifizierung erfolgreich! Sie können diese Seite nun schließen.');
-          
-          server.close();
-          console.log('Debug: Server geschlossen, Auth abgeschlossen');
-          resolve();
-        } catch (error) {
-          console.error('Debug: Auth Error:', error);
-          res.writeHead(500);
-          res.end('Authentifizierung fehlgeschlagen: ' + error.message);
-          reject(error);
-        }
-      } else {
-        res.writeHead(404);
-        res.end();
+        
+        console.log('Debug: Tokens vom Server erhalten');
+        const tokens = await response.json();
+        
+        console.log('Debug: Speichere Tokens lokal...');
+        await saveTokens(tokens);
+        
+        spotifyApi.setAccessToken(tokens.accessToken);
+        spotifyApi.setRefreshToken(tokens.refreshToken);
+        
+        console.log('Debug: Auth abgeschlossen');
+        resolve();
+      } catch (error) {
+        console.log('Debug: Fehler beim Token-Check:', error);
+        setTimeout(checkForTokens, 1000);
       }
+    };
+
+    const server = http.createServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('Auth läuft, bitte warten...');
     });
 
-    // Starte den Server und öffne dann die Auth-URL
     server.listen(8022, async () => {
       console.log('Debug: Server läuft auf Port 8022');
-      
-      // Setze die Redirect URI auf den lokalen Server
-      spotifyApi.setRedirectURI('https://spotify-cli.chaosly.de/oauth/spotify/callback');
-      
       const scopes = [
         'user-read-playback-state',
         'user-modify-playback-state',
@@ -220,10 +194,13 @@ async function authenticate() {
         'playlist-modify-private'
       ];
       
+      spotifyApi.setRedirectURI(process.env.REDIRECT_URI);
       console.log('Debug: Öffne Auth-URL...');
       const authorizeURL = spotifyApi.createAuthorizeURL(scopes, 'state');
       await open(authorizeURL);
-      console.log('Debug: Auth-URL geöffnet, warte auf Callback...');
+      console.log('Debug: Warte auf Tokens vom Server...');
+      
+      setTimeout(checkForTokens, 1000);
     });
   });
 }
