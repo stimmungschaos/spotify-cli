@@ -85,9 +85,27 @@ async function loadTokens() {
   }
 }
 
+// Token-Validierung
+async function isTokenExpired() {
+  try {
+    // Versuche einen einfachen API-Call
+    await spotifyApi.getMe();
+    return false;
+  } catch (error) {
+    return error.message === 'The access token expired';
+  }
+}
+
+// Aktualisierte refreshAccessToken Funktion
 async function refreshAccessToken() {
   try {
-    console.log('Token abgelaufen, versuche zu erneuern...');
+    // Prüfe erst, ob der Token wirklich abgelaufen ist
+    if (!await isTokenExpired()) {
+      debug('Token ist noch gültig');
+      return true;
+    }
+
+    debug('Token ist abgelaufen, erneuere...');
     const data = await spotifyApi.refreshAccessToken();
     const tokens = {
       accessToken: data.body['access_token'],
@@ -101,12 +119,13 @@ async function refreshAccessToken() {
     spotifyApi.setAccessToken(tokens.accessToken);
     spotifyApi.setRefreshToken(tokens.refreshToken);
     
+    debug('Token erfolgreich erneuert');
     return true;
   } catch (error) {
-    console.error('Token-Erneuerung fehlgeschlagen:', error.message);
+    debug('Token-Erneuerung fehlgeschlagen: ' + error.message);
     // Lösche ungültige Tokens
     try {
-      await fs.unlink(TOKEN_PATH);
+      fs.unlinkSync(TOKEN_PATH);
     } catch (e) {
       // Ignoriere Fehler beim Löschen
     }
