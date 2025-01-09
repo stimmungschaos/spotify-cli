@@ -131,16 +131,16 @@ async function withTokenRefresh(apiCall) {
 
 // Authentifizierungs-Funktion
 async function authenticate() {
-  console.log('Debug: Starte Authentifizierung...');
+  debug('Starte Authentifizierung...');
   
   const tokens = await loadTokens();
   if (tokens) {
-    console.log('Debug: Bestehende Tokens gefunden');
+    debug('Bestehende Tokens gefunden');
     spotifyApi.setAccessToken(tokens.accessToken);
     spotifyApi.setRefreshToken(tokens.refreshToken);
     
     if (await refreshAccessToken()) {
-      console.log('Debug: Token erfolgreich erneuert');
+      debug('Token erfolgreich erneuert');
       return;
     }
   }
@@ -148,28 +148,28 @@ async function authenticate() {
   return new Promise((resolve, reject) => {
     const checkForTokens = async () => {
       try {
-        console.log('Debug: Prüfe auf neue Tokens...');
+        debug('Prüfe auf neue Tokens...');
         const response = await fetch('https://spotify-cli.chaosly.de/api/oauth/spotify/tokens');
         
         if (!response.ok) {
-          console.log('Debug: Keine Tokens gefunden, warte...');
+          debug('Keine Tokens gefunden, warte...');
           setTimeout(checkForTokens, 1000);
           return;
         }
         
-        console.log('Debug: Tokens vom Server erhalten');
+        debug('Tokens vom Server erhalten');
         const tokens = await response.json();
         
-        console.log('Debug: Speichere Tokens lokal...');
+        debug('Speichere Tokens lokal...');
         await saveTokens(tokens);
         
         spotifyApi.setAccessToken(tokens.accessToken);
         spotifyApi.setRefreshToken(tokens.refreshToken);
         
-        console.log('Debug: Auth abgeschlossen');
+        debug('Auth abgeschlossen');
         resolve();
       } catch (error) {
-        console.log('Debug: Fehler beim Token-Check:', error);
+        debug('Fehler beim Token-Check: ' + error);
         setTimeout(checkForTokens, 1000);
       }
     };
@@ -180,7 +180,7 @@ async function authenticate() {
     });
 
     server.listen(8022, async () => {
-      console.log('Debug: Server läuft auf Port 8022');
+      debug('Server läuft auf Port 8022');
       const scopes = [
         'user-read-playback-state',
         'user-modify-playback-state',
@@ -193,10 +193,10 @@ async function authenticate() {
       ];
       
       spotifyApi.setRedirectURI(process.env.REDIRECT_URI);
-      console.log('Debug: Öffne Auth-URL...');
+      debug('Öffne Auth-URL...');
       const authorizeURL = spotifyApi.createAuthorizeURL(scopes, 'state');
       await open(authorizeURL);
-      console.log('Debug: Warte auf Tokens vom Server...');
+      debug('Warte auf Tokens vom Server...');
       
       setTimeout(checkForTokens, 1000);
     });
