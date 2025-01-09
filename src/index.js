@@ -223,6 +223,66 @@ const formatError = (message) => {
   });
 };
 
+// Config-Datei im Home-Verzeichnis
+const CONFIG_PATH = path.join(
+  process.env.APPDATA || process.env.HOME || process.env.USERPROFILE,
+  '.spotify-cli-config.json'
+);
+
+// Debug-Funktion
+function debug(message) {
+  const config = loadConfig();
+  if (config.debug) {
+    console.log('Debug:', message);
+  }
+}
+
+// Config-Management
+function loadConfig() {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    }
+  } catch (error) {
+    console.error('Fehler beim Laden der Config:', error);
+  }
+  return { debug: false };
+}
+
+function saveConfig(config) {
+  try {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Fehler beim Speichern der Config:', error);
+    return false;
+  }
+}
+
+// Config Command
+program
+  .command('config')
+  .description('Konfiguration anzeigen oder ändern')
+  .argument('<key>', 'Konfigurations-Schlüssel (z.B. debug)')
+  .argument('[value]', 'Neuer Wert (on/off)')
+  .action((key, value) => {
+    const config = loadConfig();
+    
+    if (value === undefined) {
+      // Wert anzeigen
+      console.log(`${key}: ${config[key] ? 'on' : 'off'}`);
+    } else {
+      // Wert setzen
+      config[key] = value === 'on';
+      if (saveConfig(config)) {
+        console.log(`${key} wurde auf ${value} gesetzt`);
+      }
+    }
+  });
+
+// Debug-Option für alle Commands
+program.option('--debug', 'Debug-Modus aktivieren');
+
 program
   .name('spotify-cli')
   .version('1.0.0')
@@ -241,9 +301,22 @@ program.on('--help', () => {
 program
   .command('play')
   .description('Aktuelle Wiedergabe fortsetzen')
-  .action(async () => {
+  .action(async (options) => {
     try {
+      // Debug-Modus aus Command-Option oder Config
+      const config = loadConfig();
+      const debugMode = program.opts().debug || config.debug;
+      
+      if (debugMode) {
+        console.log('Debug: Starte Authentifizierung...');
+      }
+      
       await authenticate();
+      
+      if (debugMode) {
+        console.log('Debug: Authentifizierung erfolgreich');
+      }
+      
       await withTokenRefresh(() => spotifyApi.play());
       console.log(formatOutput('Wiedergabe', chalk.green('▶️ Wiedergabe gestartet')));
     } catch (error) {

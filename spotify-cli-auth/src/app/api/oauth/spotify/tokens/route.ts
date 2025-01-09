@@ -20,17 +20,14 @@ const saveTokenWithSession = (spotifyTokens: any) => {
   return sessionToken;
 };
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const { sessionToken } = await request.json();
-    
     // Lese gespeicherte Tokens
     const data = JSON.parse(fs.readFileSync('/tmp/.spotify-cli-tokens.json', 'utf8'));
     
-    // Überprüfe Session-Token und Timestamp (15 Minuten Gültigkeit)
-    if (data.sessionToken !== sessionToken || 
-        Date.now() - data.timestamp > 15 * 60 * 1000) {
-      return new Response('Unauthorized', { status: 401 });
+    // Überprüfe Timestamp (15 Minuten Gültigkeit)
+    if (Date.now() - data.timestamp > 15 * 60 * 1000) {
+      return new Response('Token expired', { status: 401 });
     }
 
     // Lösche Token-Datei nach erfolgreichem Abruf
