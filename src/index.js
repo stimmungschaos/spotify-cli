@@ -229,10 +229,13 @@ const CONFIG_PATH = path.join(
   '.spotify-cli-config.json'
 );
 
-// Debug-Funktion
+// Debug-Funktion mit Cache
+let configCache = null;
 function debug(message) {
-  const config = loadConfig();
-  if (config.debug) {
+  if (configCache === null) {
+    configCache = loadConfig();
+  }
+  if (configCache.debug) {
     console.log('Debug:', message);
   }
 }
@@ -241,7 +244,8 @@ function debug(message) {
 function loadConfig() {
   try {
     if (fs.existsSync(CONFIG_PATH)) {
-      return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+      const data = fs.readFileSync(CONFIG_PATH, 'utf8');
+      return JSON.parse(data);
     }
   } catch (error) {
     console.error('Fehler beim Laden der Config:', error);
