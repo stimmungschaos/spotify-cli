@@ -38,23 +38,23 @@ const spotifyApi = new SpotifyWebApi({
 // Token-Management Funktionen
 async function saveTokens(tokens) {
   try {
-    console.log('Debug: Versuche Tokens zu speichern...');
-    console.log('Debug: Token-Pfad:', TOKEN_PATH);
+    debug('Versuche Tokens zu speichern...');
+    debug('Token-Pfad: ' + TOKEN_PATH);
     
     // Stelle sicher, dass das Verzeichnis existiert
     const tokenDir = path.dirname(TOKEN_PATH);
-    await fs.mkdir(tokenDir, { recursive: true });
+    fs.mkdirSync(tokenDir, { recursive: true });
     
     // Setze Berechtigungen für die Datei
-    await fs.writeFile(TOKEN_PATH, JSON.stringify(tokens, null, 2), {
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2), {
       mode: 0o600  // Nur der Besitzer kann lesen und schreiben
     });
     
-    console.log('Debug: Tokens erfolgreich gespeichert');
+    debug('Tokens erfolgreich gespeichert');
     
     // Überprüfe, ob die Datei wirklich erstellt wurde
-    const stats = await fs.stat(TOKEN_PATH);
-    console.log('Debug: Token-Datei erstellt mit Berechtigungen:', stats.mode.toString(8));
+    const stats = fs.statSync(TOKEN_PATH);
+    debug('Token-Datei erstellt mit Berechtigungen: ' + stats.mode.toString(8));
     
     return true;
   } catch (error) {
@@ -66,19 +66,17 @@ async function saveTokens(tokens) {
 
 async function loadTokens() {
   try {
-    console.log('Debug: Versuche Tokens zu laden...');
-    console.log('Debug: Token-Pfad:', TOKEN_PATH);
+    debug('Versuche Tokens zu laden...');
+    debug('Token-Pfad: ' + TOKEN_PATH);
     
     // Prüfe ob die Datei existiert
-    try {
-      await fs.access(TOKEN_PATH);
-    } catch {
-      console.log('Debug: Token-Datei existiert nicht');
+    if (!fs.existsSync(TOKEN_PATH)) {
+      debug('Token-Datei existiert nicht');
       return null;
     }
     
-    const data = await fs.readFile(TOKEN_PATH, 'utf8');
-    console.log('Debug: Tokens gefunden');
+    const data = fs.readFileSync(TOKEN_PATH, 'utf8');
+    debug('Tokens gefunden');
     return JSON.parse(data);
   } catch (error) {
     console.error('Debug: Fehler beim Laden der Tokens:', error);
