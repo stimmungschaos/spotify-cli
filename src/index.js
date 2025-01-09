@@ -4,7 +4,7 @@ import { program } from 'commander';
 import SpotifyWebApi from 'spotify-web-api-node';
 import http from 'http';
 import url from 'url';
-import { promises as fs } from 'fs';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
