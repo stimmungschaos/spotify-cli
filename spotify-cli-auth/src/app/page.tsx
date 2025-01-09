@@ -188,7 +188,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
+            
             {/* Terminal Content */}
             <div className="p-6 font-mono text-sm space-y-4">
               <div className="text-gray-400 mb-4">
@@ -265,8 +265,8 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div>
-
+            </div>
+            
           {/* Command Preview Section */}
           <div className="mb-16">
             <h2 className="text-2xl font-bold text-green-400 mb-6 text-center">Live Demo</h2>
@@ -378,7 +378,7 @@ export default function Home() {
                    className="text-gray-400 hover:text-green-400 transition-colors">
                   GitHub
                 </a>
-              </div>
+            </div>
 
               {/* Suggestions Box */}
               <div className="max-w-lg mx-auto bg-gray-800/50 rounded-lg p-6 backdrop-blur-sm border border-gray-700/50">
