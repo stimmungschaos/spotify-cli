@@ -454,12 +454,12 @@ program.on('--help', () => {
 program
   .command('play')
   .description('Wiedergabe starten oder bestimmten Song abspielen')
-  .argument('[...query]', 'Suchbegriff für einen Song (optional)')
-  .action(async (query, options) => {
+  .argument('[...words]', 'Suchbegriff für einen Song (optional)')
+  .action(async (words) => {
     try {
       await authenticate();
 
-      if (!query || query.length === 0) {
+      if (!words || words.length === 0) {
         // Normale Wiedergabe fortsetzen
         await withTokenRefresh(() => spotifyApi.play());
         console.log(formatOutput('Wiedergabe', chalk.green('▶️ Wiedergabe gestartet')));
@@ -467,7 +467,7 @@ program
       }
 
       // Verbinde die Suchbegriffe zu einem String
-      const searchQuery = Array.isArray(query) ? query.join(' ') : query;
+      const searchQuery = Array.isArray(words) ? words.join(' ') : words;
 
       // Suche nach dem Song
       const searchResult = await withTokenRefresh(() => 
@@ -495,7 +495,7 @@ program
         try {
           await refreshAccessToken();
           // Rekursiver Aufruf mit den gleichen Argumenten
-          return program.commands.find(cmd => cmd.name() === 'play').action(query, options);
+          return program.commands.find(cmd => cmd.name() === 'play').action(words);
         } catch (refreshError) {
           console.error(formatError('Fehler bei der Token-Erneuerung. Bitte erneut authentifizieren.'));
           return;
