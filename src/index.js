@@ -28,6 +28,12 @@ const TOKEN_PATH = path.join(
 
 // Funktion zum Suchen der .env Datei
 function lookupEnv() {
+  // Prüfe zuerst, ob ein benutzerdefinierter Pfad in der Konfiguration existiert
+  const config = loadConfig();
+  if (config.envPath && fs.existsSync(config.envPath)) {
+    return config.envPath;
+  }
+
   const possiblePaths = [
     process.cwd(), // Aktuelles Verzeichnis
     path.join(process.env.HOME || process.env.USERPROFILE, '.spotify-cli'), // Home Verzeichnis
@@ -290,11 +296,15 @@ function loadConfig() {
   } catch (error) {
     console.error('Fehler beim Laden der Config:', error);
   }
-  return { debug: false };
+  return { debug: false, envPath: null };
 }
 
 function saveConfig(config) {
   try {
+    // Stelle sicher, dass das Verzeichnis existiert
+    const configDir = path.dirname(CONFIG_PATH);
+    fs.mkdirSync(configDir, { recursive: true });
+    
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
     return true;
   } catch (error) {
@@ -307,19 +317,41 @@ function saveConfig(config) {
 program
   .command('config')
   .description('Konfiguration anzeigen oder ändern')
-  .argument('<key>', 'Konfigurations-Schlüssel (z.B. debug)')
-  .argument('[value]', 'Neuer Wert (on/off)')
+  .argument('<key>', 'Konfigurations-Schlüssel (z.B. debug, env)')
+  .argument('[value]', 'Neuer Wert (für env: Pfad zur .env Datei, für andere: on/off)')
   .action((key, value) => {
     const config = loadConfig();
     
-    if (value === undefined) {
-      // Wert anzeigen
-      console.log(`${key}: ${config[key] ? 'on' : 'off'}`);
+    if (key === 'env') {
+      if (value === undefined) {
+        // Zeige aktuellen env Pfad
+        console.log(`env: ${config.envPath || 'Nicht konfiguriert (Standard-Suche aktiv)'}`);
+      } else {
+        // Prüfe ob die angegebene Datei existiert
+        const envPath = path.resolve(value);
+        if (!fs.existsSync(envPath)) {
+          console.error(formatError(`Die Datei ${envPath} existiert nicht`));
+          return;
+        }
+        
+        // Setze den neuen env Pfad
+        config.envPath = envPath;
+        if (saveConfig(config)) {
+          console.log(formatOutput('ENV Konfiguration', chalk.green(`Die .env Datei wurde konfiguriert auf:\n${envPath}`)));
+          // Lade die neue .env Datei sofort
+          dotenv.config({ path: envPath });
+        }
+      }
     } else {
-      // Wert setzen
-      config[key] = value === 'on';
-      if (saveConfig(config)) {
-        console.log(`${key} wurde auf ${value} gesetzt`);
+      if (value === undefined) {
+        // Wert anzeigen
+        console.log(`${key}: ${config[key] ? 'on' : 'off'}`);
+      } else {
+        // Wert setzen
+        config[key] = value === 'on';
+        if (saveConfig(config)) {
+          console.log(`${key} wurde auf ${value} gesetzt`);
+        }
       }
     }
   });
