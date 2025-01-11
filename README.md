@@ -1,28 +1,32 @@
- - Spotify CLI
- - Ein  Command Line Interface für Spotify, zum steuern von Spotify vom Terminal aus
+ ##  Spotify CLI
+  Ein  Command Line Interface für Spotify, zum steuern von Spotify vom Terminal aus
 
 
-Features:
+## Features:
 - Einfache Musiksteuerung (play, pause, next, previous)
 - Gerätemanagement 
 - Tracks liken/unliken
 - Sichere Authentifizierung
 - Designter Terminal Output
 
-Installation:
-- wget https://github.com/stimmungschaos/spotify-cli/releases/download/v1/spotify-cli_1.0.0_amd64.deb
-- sudo dpkg --force-depends -i spotify-cli_1.0.0_amd64.deb
-- rm spotify-cli_1.0.0_amd64.deb
+## Installation:
+```bash
+ wget https://github.com/stimmungschaos/spotify-cli/releases/download/v1/spotify-cli_1.0.0_amd64.deb
+ sudo dpkg --force-depends -i spotify-cli_1.0.0_amd64.deb
+ rm spotify-cli_1.0.0_amd64.deb
+```
 
-Oder Selber kompilieren: 
-- git clone https://github.com/stimmungschaos/spotify-cli.git
-- cd spotify-cli
-- npm i
-- ./build.sh 
+## Selber kompilieren: 
+```bash
+git clone https://github.com/stimmungschaos/spotify-cli.git
+cd spotify-cli
+npm i
+./build.sh 
+```
 
 
- - Verwendung:
- - Erstelle eine .env Datei in dem Verzeichnis spotify-cli und spotify-cli-auth mit folgenden Werten:
+## Verwendung:
+- Erstelle eine .env Datei in dem Verzeichnis spotify-cli und spotify-cli-auth mit folgenden Werten:
 
 - SPOTIFY_CLIENT_ID=CLIENT_ID
 - SPOTIFY_CLIENT_SECRET=CLIENT_SECRET
