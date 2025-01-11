@@ -211,12 +211,6 @@ async function isTokenExpired() {
 // Aktualisierte refreshAccessToken Funktion
 async function refreshAccessToken() {
   try {
-    // Prüfe erst, ob der Token wirklich abgelaufen ist
-    if (!await isTokenExpired()) {
-      debug('Token ist noch gültig');
-      return true;
-    }
-
     debug('Token ist abgelaufen, erneuere...');
     const data = await spotifyApi.refreshAccessToken();
     const tokens = {
@@ -241,7 +235,7 @@ async function refreshAccessToken() {
     } catch (e) {
       // Ignoriere Fehler beim Löschen
     }
-    return false;
+    throw error; // Werfe den Fehler weiter, damit er behandelt werden kann
   }
 }
 
@@ -251,10 +245,9 @@ async function withTokenRefresh(apiCall) {
     return await apiCall();
   } catch (error) {
     if (error.message === 'The access token expired') {
-      if (await refreshAccessToken()) {
-        // Versuche den API-Aufruf erneut
-        return await apiCall();
-      }
+      await refreshAccessToken();
+      // Versuche den API-Aufruf erneut
+      return await apiCall();
     }
     throw error;
   }
@@ -461,25 +454,28 @@ program.on('--help', () => {
 program
   .command('play')
   .description('Wiedergabe starten oder bestimmten Song abspielen')
-  .argument('[query]', 'Suchbegriff für einen Song (optional)')
+  .argument('[...query]', 'Suchbegriff für einen Song (optional)')
   .action(async (query, options) => {
     try {
       await authenticate();
 
-      if (!query) {
+      if (!query || query.length === 0) {
         // Normale Wiedergabe fortsetzen
         await withTokenRefresh(() => spotifyApi.play());
         console.log(formatOutput('Wiedergabe', chalk.green('▶️ Wiedergabe gestartet')));
         return;
       }
 
+      // Verbinde die Suchbegriffe zu einem String
+      const searchQuery = Array.isArray(query) ? query.join(' ') : query;
+
       // Suche nach dem Song
       const searchResult = await withTokenRefresh(() => 
-        spotifyApi.searchTracks(query, { limit: 1 })
+        spotifyApi.searchTracks(searchQuery, { limit: 1 })
       );
 
       if (searchResult.body.tracks.items.length === 0) {
-        console.log(formatError(`Kein Track gefunden für: ${query}`));
+        console.log(formatError(`Kein Track gefunden für: ${searchQuery}`));
         return;
       }
 
@@ -494,6 +490,17 @@ program
         chalk.gray('von ') + track.artists.map(a => a.name).join(', ')
       ));
     } catch (error) {
+      if (error.message === 'The access token expired') {
+        // Versuche Token zu erneuern und den Befehl erneut auszuführen
+        try {
+          await refreshAccessToken();
+          // Rekursiver Aufruf mit den gleichen Argumenten
+          return program.commands.find(cmd => cmd.name() === 'play').action(query, options);
+        } catch (refreshError) {
+          console.error(formatError('Fehler bei der Token-Erneuerung. Bitte erneut authentifizieren.'));
+          return;
+        }
+      }
       console.error(formatError(error.message));
     }
   });
