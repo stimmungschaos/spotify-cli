@@ -16,12 +16,21 @@ import boxen from 'boxen';
 import Table from 'cli-table3';
 import fetch from 'node-fetch';
 
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Token-Datei im Home-Verzeichnis
+const TOKEN_PATH = path.join(
+  process.env.APPDATA || process.env.HOME || process.env.USERPROFILE,
+  '.spotify-cli-tokens.json'
+);
+
 // Funktion zum Suchen der .env Datei
 function lookupEnv() {
   const possiblePaths = [
     process.cwd(), // Aktuelles Verzeichnis
     path.join(process.env.HOME || process.env.USERPROFILE, '.spotify-cli'), // Home Verzeichnis
-    path.join(__dirname, '..'), // Projektverzeichnis
     path.join(process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || process.env.USERPROFILE, '.config'), 'spotify-cli') // XDG Config Dir
   ];
 
@@ -35,8 +44,6 @@ function lookupEnv() {
   return null;
 }
 
-const require = createRequire(import.meta.url);
-
 // Konfiguriere dotenv mit dem gefundenen Pfad
 const envPath = lookupEnv();
 if (envPath) {
@@ -44,15 +51,6 @@ if (envPath) {
 } else {
   console.warn(chalk.yellow('Warnung: Keine .env Datei gefunden'));
 }
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Token-Datei im Home-Verzeichnis
-const TOKEN_PATH = path.join(
-  process.env.APPDATA || process.env.HOME || process.env.USERPROFILE,
-  '.spotify-cli-tokens.json'
-);
 
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
@@ -339,8 +337,7 @@ program
       console.log('\nDie .env Datei wird in folgenden Verzeichnissen gesucht:');
       console.log('1. Aktuelles Verzeichnis');
       console.log(`2. ${path.join(process.env.HOME || process.env.USERPROFILE, '.spotify-cli')}`);
-      console.log(`3. ${path.join(__dirname, '..')}`);
-      console.log(`4. ${path.join(process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || process.env.USERPROFILE, '.config'), 'spotify-cli')}`);
+      console.log(`3. ${path.join(process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || process.env.USERPROFILE, '.config'), 'spotify-cli')}`);
     }
   });
 
@@ -351,7 +348,8 @@ program
   .name('spotify-cli')
   .version('1.0.0')
   .description(chalk.cyan('Ein CLI-Tool für Spotify'))
-  .usage(chalk.yellow('[command] [options]'));
+  .usage(chalk.yellow('[command] [options]'))
+  .allowUnknownOption(false);
 
 program.on('--help', () => {
   console.log('');
