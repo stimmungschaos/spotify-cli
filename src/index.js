@@ -16,9 +16,34 @@ import boxen from 'boxen';
 import Table from 'cli-table3';
 import fetch from 'node-fetch';
 
+// Funktion zum Suchen der .env Datei
+function lookupEnv() {
+  const possiblePaths = [
+    process.cwd(), // Aktuelles Verzeichnis
+    path.join(process.env.HOME || process.env.USERPROFILE, '.spotify-cli'), // Home Verzeichnis
+    path.join(__dirname, '..'), // Projektverzeichnis
+    path.join(process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || process.env.USERPROFILE, '.config'), 'spotify-cli') // XDG Config Dir
+  ];
+
+  for (const dir of possiblePaths) {
+    const envPath = path.join(dir, '.env');
+    if (fs.existsSync(envPath)) {
+      return envPath;
+    }
+  }
+  
+  return null;
+}
+
 const require = createRequire(import.meta.url);
 
-dotenv.config();
+// Konfiguriere dotenv mit dem gefundenen Pfad
+const envPath = lookupEnv();
+if (envPath) {
+  dotenv.config({ path: envPath });
+} else {
+  console.warn(chalk.yellow('Warnung: Keine .env Datei gefunden'));
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -298,6 +323,24 @@ program
       if (saveConfig(config)) {
         console.log(`${key} wurde auf ${value} gesetzt`);
       }
+    }
+  });
+
+// Env Command
+program
+  .command('env')
+  .description('Zeigt den Pfad zur verwendeten .env Datei')
+  .action(() => {
+    const envPath = lookupEnv();
+    if (envPath) {
+      console.log(formatOutput('ENV Datei', chalk.green(`Die .env Datei wurde gefunden unter:\n${envPath}`)));
+    } else {
+      console.log(formatError('Keine .env Datei gefunden in den Standard-Verzeichnissen'));
+      console.log('\nDie .env Datei wird in folgenden Verzeichnissen gesucht:');
+      console.log('1. Aktuelles Verzeichnis');
+      console.log(`2. ${path.join(process.env.HOME || process.env.USERPROFILE, '.spotify-cli')}`);
+      console.log(`3. ${path.join(__dirname, '..')}`);
+      console.log(`4. ${path.join(process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || process.env.USERPROFILE, '.config'), 'spotify-cli')}`);
     }
   });
 
