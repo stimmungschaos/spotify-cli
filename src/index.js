@@ -20,6 +20,25 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Formatierungsfunktionen
+const formatOutput = (title, content) => {
+  return boxen(chalk.bold(title) + '\n' + content, {
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'cyan'
+  });
+};
+
+const formatError = (message) => {
+  return boxen(chalk.red('Error: ') + message, {
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'red'
+  });
+};
+
 // Pfade für Konfiguration und Token
 const CONFIG_PATH = path.join(
   process.env.APPDATA || process.env.HOME || process.env.USERPROFILE,
@@ -127,24 +146,6 @@ const spotifyApi = new SpotifyWebApi({
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
   redirectUri: process.env.REDIRECT_URI
 });
-
-const formatOutput = (title, content) => {
-  return boxen(chalk.bold(title) + '\n' + content, {
-    padding: 1,
-    margin: 1,
-    borderStyle: 'round',
-    borderColor: 'cyan'
-  });
-};
-
-const formatError = (message) => {
-  return boxen(chalk.red('Error: ') + message, {
-    padding: 1,
-    margin: 1,
-    borderStyle: 'round',
-    borderColor: 'red'
-  });
-};
 
 // Token-Management Funktionen
 async function saveTokens(tokens) {
