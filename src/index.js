@@ -98,7 +98,28 @@ const envPath = lookupEnv();
 if (envPath) {
   dotenv.config({ path: envPath });
 } else {
-  console.warn(chalk.yellow('Warnung: Keine .env Datei gefunden'));
+  console.log(formatError('Keine .env Datei gefunden!'));
+  console.log(boxen(
+    chalk.yellow('So richten Sie die .env Datei ein:\n\n') +
+    chalk.cyan('1. Erstellen Sie eine .env Datei mit folgenden Werten:\n') +
+    '   SPOTIFY_CLIENT_ID=ihre_client_id\n' +
+    '   SPOTIFY_CLIENT_SECRET=ihr_client_secret\n' +
+    '   REDIRECT_URI=https://spotify-cli.chaosly.de/oauth/spotify/callback\n\n' +
+    chalk.cyan('2. Speichern Sie die Datei an einem der folgenden Orte:\n') +
+    `   - ${process.cwd()}\n` +
+    `   - ${path.join(process.env.HOME || process.env.USERPROFILE, '.spotify-cli')}\n` +
+    `   - ${path.join(process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || process.env.USERPROFILE, '.config'), 'spotify-cli')}\n\n` +
+    chalk.cyan('3. Oder konfigurieren Sie einen benutzerdefinierten Pfad:\n') +
+    '   spotify-cli config env /pfad/zu/ihrer/.env\n\n' +
+    chalk.cyan('4. Die Client ID und das Secret erhalten Sie unter:\n') +
+    '   https://developer.spotify.com/dashboard\n',
+    {
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+      borderColor: 'yellow'
+    }
+  ));
 }
 
 const spotifyApi = new SpotifyWebApi({
@@ -318,13 +339,30 @@ program
   .description('Konfiguration anzeigen oder ändern')
   .argument('<key>', 'Konfigurations-Schlüssel (z.B. debug, env)')
   .argument('[value]', 'Neuer Wert (für env: Pfad zur .env Datei, für andere: on/off)')
-  .action((key, value) => {
+  .option('-r, --remove', 'Konfigurationswert entfernen')
+  .action((key, value, options) => {
     const config = loadConfig();
     
+    if (options.remove) {
+      if (key === 'env') {
+        delete config.envPath;
+        if (saveConfig(config)) {
+          console.log(formatOutput('ENV Konfiguration', chalk.yellow('Benutzerdefinierter ENV-Pfad wurde entfernt.\nEs wird nun in den Standardverzeichnissen gesucht.')));
+        }
+      } else {
+        console.error(formatError(`Der Wert für '${key}' kann nicht entfernt werden`));
+      }
+      return;
+    }
+
     if (key === 'env') {
       if (value === undefined) {
         // Zeige aktuellen env Pfad
-        console.log(`env: ${config.envPath || 'Nicht konfiguriert (Standard-Suche aktiv)'}`);
+        console.log(formatOutput('ENV Konfiguration', 
+          config.envPath 
+            ? chalk.green(`Aktueller ENV-Pfad:\n${config.envPath}`)
+            : chalk.yellow('Kein benutzerdefinierter Pfad konfiguriert\n(Standard-Suche aktiv)')
+        ));
       } else {
         // Prüfe ob die angegebene Datei existiert
         const envPath = path.resolve(value);
@@ -344,12 +382,18 @@ program
     } else {
       if (value === undefined) {
         // Wert anzeigen
-        console.log(`${key}: ${config[key] ? 'on' : 'off'}`);
+        console.log(formatOutput(
+          'Konfiguration', 
+          `${key}: ${config[key] ? chalk.green('on') : chalk.red('off')}`
+        ));
       } else {
         // Wert setzen
         config[key] = value === 'on';
         if (saveConfig(config)) {
-          console.log(`${key} wurde auf ${value} gesetzt`);
+          console.log(formatOutput(
+            'Konfiguration', 
+            `${key} wurde auf ${value === 'on' ? chalk.green(value) : chalk.red(value)} gesetzt`
+          ));
         }
       }
     }
@@ -393,25 +437,39 @@ program.on('--help', () => {
 
 program
   .command('play')
-  .description('Aktuelle Wiedergabe fortsetzen')
-  .action(async (options) => {
+  .description('Wiedergabe starten oder bestimmten Song abspielen')
+  .argument('[query]', 'Suchbegriff für einen Song (optional)')
+  .action(async (query, options) => {
     try {
-      // Debug-Modus aus Command-Option oder Config
-      const config = loadConfig();
-      const debugMode = program.opts().debug || config.debug;
-      
-      if (debugMode) {
-        console.log('Debug: Starte Authentifizierung...');
-      }
-      
       await authenticate();
-      
-      if (debugMode) {
-        console.log('Debug: Authentifizierung erfolgreich');
+
+      if (!query) {
+        // Normale Wiedergabe fortsetzen
+        await withTokenRefresh(() => spotifyApi.play());
+        console.log(formatOutput('Wiedergabe', chalk.green('▶️ Wiedergabe gestartet')));
+        return;
       }
-      
-      await withTokenRefresh(() => spotifyApi.play());
-      console.log(formatOutput('Wiedergabe', chalk.green('▶️ Wiedergabe gestartet')));
+
+      // Suche nach dem Song
+      const searchResult = await withTokenRefresh(() => 
+        spotifyApi.searchTracks(query, { limit: 1 })
+      );
+
+      if (searchResult.body.tracks.items.length === 0) {
+        console.log(formatError(`Kein Track gefunden für: ${query}`));
+        return;
+      }
+
+      const track = searchResult.body.tracks.items[0];
+      await withTokenRefresh(() => 
+        spotifyApi.play({ uris: [track.uri] })
+      );
+
+      console.log(formatOutput('Wiedergabe', 
+        chalk.green('▶️ Spiele jetzt:\n') +
+        chalk.bold(track.name) + '\n' +
+        chalk.gray('von ') + track.artists.map(a => a.name).join(', ')
+      ));
     } catch (error) {
       console.error(formatError(error.message));
     }
@@ -459,16 +517,42 @@ program
   });
 
 program
-  .command('volume <level>')
-  .description('Lautstärke einstellen (0-100)')
+  .command('volume')
+  .aliases(['vol'])
+  .description('Lautstärke einstellen')
+  .argument('[level]', 'Lautstärke (0-100) oder +/- für relative Änderung')
   .action(async (level) => {
     try {
       await authenticate();
-      const volume = Math.min(Math.max(parseInt(level), 0), 100);
-      await spotifyApi.setVolume(volume);
-      console.log(`🔊 Lautstärke auf ${volume}% gesetzt`);
+      
+      // Aktuelle Lautstärke abrufen
+      const state = await withTokenRefresh(() => spotifyApi.getMyCurrentPlaybackState());
+      let currentVolume = state.body.device.volume_percent;
+
+      if (!level) {
+        // Nur aktuelle Lautstärke anzeigen
+        console.log(formatOutput('Lautstärke', 
+          `🔊 Aktuelle Lautstärke: ${chalk.green(currentVolume + '%')}`
+        ));
+        return;
+      }
+
+      let newVolume;
+      if (level.startsWith('+') || level.startsWith('-')) {
+        // Relative Änderung
+        const change = parseInt(level);
+        newVolume = Math.min(Math.max(currentVolume + change, 0), 100);
+      } else {
+        // Absolute Änderung
+        newVolume = Math.min(Math.max(parseInt(level), 0), 100);
+      }
+
+      await withTokenRefresh(() => spotifyApi.setVolume(newVolume));
+      console.log(formatOutput('Lautstärke', 
+        `🔊 Lautstärke auf ${chalk.green(newVolume + '%')} gesetzt`
+      ));
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -574,15 +658,42 @@ program
   });
 
 program
-  .command('queue <uri>')
+  .command('queue')
   .description('Track zur Warteschlange hinzufügen')
-  .action(async (uri) => {
+  .argument('<query>', 'Suchbegriff oder Spotify URI')
+  .action(async (query) => {
     try {
       await authenticate();
-      await spotifyApi.addToQueue(uri);
-      console.log('➕ Track zur Warteschlange hinzugefügt');
+
+      let uri = query;
+      // Wenn keine Spotify URI eingegeben wurde, suche nach dem Track
+      if (!query.startsWith('spotify:')) {
+        const searchResult = await withTokenRefresh(() => 
+          spotifyApi.searchTracks(query, { limit: 1 })
+        );
+
+        if (searchResult.body.tracks.items.length === 0) {
+          console.log(formatError(`Kein Track gefunden für: ${query}`));
+          return;
+        }
+
+        const track = searchResult.body.tracks.items[0];
+        uri = track.uri;
+        
+        await withTokenRefresh(() => spotifyApi.addToQueue(uri));
+        console.log(formatOutput('Warteschlange', 
+          chalk.green('➕ Zur Warteschlange hinzugefügt:\n') +
+          chalk.bold(track.name) + '\n' +
+          chalk.gray('von ') + track.artists.map(a => a.name).join(', ')
+        ));
+      } else {
+        await withTokenRefresh(() => spotifyApi.addToQueue(uri));
+        console.log(formatOutput('Warteschlange', 
+          chalk.green('➕ Track zur Warteschlange hinzugefügt')
+        ));
+      }
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
