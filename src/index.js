@@ -344,6 +344,28 @@ program
   .action((key, value, options) => {
     const config = loadConfig();
     
+    // Liste der erlaubten Konfigurationsschlüssel
+    const validKeys = ['debug', 'env'];
+    
+    if (!validKeys.includes(key)) {
+      console.error(formatError(`Ungültiger Konfigurationsschlüssel: ${key}`));
+      console.log(boxen(
+        chalk.yellow('Verfügbare Konfigurationsschlüssel:\n\n') +
+        chalk.cyan('env:') + '   Pfad zur .env Datei konfigurieren\n' +
+        '      Beispiel: spotify-cli config env /pfad/zu/.env\n' +
+        '      Entfernen: spotify-cli config env -r\n\n' +
+        chalk.cyan('debug:') + ' Debug-Modus aktivieren/deaktivieren\n' +
+        '      Beispiel: spotify-cli config debug on\n',
+        {
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'yellow'
+        }
+      ));
+      return;
+    }
+
     if (options.remove) {
       if (key === 'env') {
         delete config.envPath;
