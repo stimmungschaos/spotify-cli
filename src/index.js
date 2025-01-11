@@ -513,9 +513,9 @@ program
     try {
       await authenticate();
       await spotifyApi.pause();
-      console.log('⏸️ Wiedergabe pausiert');
+      console.log(formatOutput('Wiedergabe', chalk.yellow('⏸️ Wiedergabe pausiert')));
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -527,9 +527,18 @@ program
     try {
       await authenticate();
       await spotifyApi.skipToNext();
-      console.log('⏭️ Nächster Track');
+      const track = await spotifyApi.getMyCurrentPlayingTrack();
+      if (track.body && track.body.item) {
+        console.log(formatOutput('Nächster Track', 
+          chalk.green('⏭️ Spiele jetzt:\n') +
+          chalk.bold(track.body.item.name) + '\n' +
+          chalk.gray('von ') + track.body.item.artists.map(a => a.name).join(', ')
+        ));
+      } else {
+        console.log(formatOutput('Nächster Track', chalk.green('⏭️ Zum nächsten Track gewechselt')));
+      }
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -541,9 +550,18 @@ program
     try {
       await authenticate();
       await spotifyApi.skipToPrevious();
-      console.log('⏮️ Vorheriger Track');
+      const track = await spotifyApi.getMyCurrentPlayingTrack();
+      if (track.body && track.body.item) {
+        console.log(formatOutput('Vorheriger Track', 
+          chalk.green('⏮️ Spiele jetzt:\n') +
+          chalk.bold(track.body.item.name) + '\n' +
+          chalk.gray('von ') + track.body.item.artists.map(a => a.name).join(', ')
+        ));
+      } else {
+        console.log(formatOutput('Vorheriger Track', chalk.green('⏮️ Zum vorherigen Track gewechselt')));
+      }
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -620,9 +638,13 @@ program
       const state = await spotifyApi.getMyCurrentPlaybackState();
       const newState = !state.body.shuffle_state;
       await spotifyApi.setShuffle(newState);
-      console.log(`🔀 Zufallswiedergabe ${newState ? 'aktiviert' : 'deaktiviert'}`);
+      console.log(formatOutput('Zufallswiedergabe', 
+        newState 
+          ? chalk.green('🔀 Zufallswiedergabe aktiviert')
+          : chalk.yellow('🔀 Zufallswiedergabe deaktiviert')
+      ));
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -634,9 +656,21 @@ program
     try {
       await authenticate();
       await spotifyApi.setRepeat(mode);
-      console.log(`🔁 Wiederholung: ${mode}`);
+      const modeIcons = {
+        track: '🔂',
+        context: '🔁',
+        off: '➡️'
+      };
+      const modeNames = {
+        track: 'Track wiederholen',
+        context: 'Playlist/Album wiederholen',
+        off: 'Wiederholung aus'
+      };
+      console.log(formatOutput('Wiederholung', 
+        `${modeIcons[mode]} ${chalk.green(modeNames[mode])}`
+      ));
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -770,15 +804,28 @@ program
   });
 
 program
-  .command('transfer <deviceId>')
+  .command('transfer')
   .description('Wiedergabe auf anderes Gerät übertragen')
+  .argument('<deviceId>', 'ID des Zielgeräts')
   .action(async (deviceId) => {
     try {
       await authenticate();
+      const devices = await spotifyApi.getMyDevices();
+      const targetDevice = devices.body.devices.find(d => d.id === deviceId);
+      
+      if (!targetDevice) {
+        console.log(formatError(`Gerät mit ID ${deviceId} nicht gefunden`));
+        return;
+      }
+
       await spotifyApi.transferMyPlayback([deviceId]);
-      console.log('📱 Wiedergabe übertragen');
+      console.log(formatOutput('Geräteübertragung', 
+        chalk.green(`📱 Wiedergabe übertragen auf:\n`) +
+        chalk.bold(targetDevice.name) + '\n' +
+        chalk.gray(`Typ: ${targetDevice.type}`)
+      ));
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -794,14 +841,24 @@ program
         const isSaved = await spotifyApi.containsMySavedTracks([id]);
         if (isSaved.body[0]) {
           await spotifyApi.removeFromMySavedTracks([id]);
-          console.log('💔 Track aus deinen Likes entfernt');
+          console.log(formatOutput('Like', 
+            chalk.red('💔 Aus deinen Likes entfernt:\n') +
+            chalk.bold(track.body.item.name) + '\n' +
+            chalk.gray('von ') + track.body.item.artists.map(a => a.name).join(', ')
+          ));
         } else {
           await spotifyApi.addToMySavedTracks([id]);
-          console.log('❤️ Track zu deinen Likes hinzugefügt');
+          console.log(formatOutput('Like', 
+            chalk.green('❤️ Zu deinen Likes hinzugefügt:\n') +
+            chalk.bold(track.body.item.name) + '\n' +
+            chalk.gray('von ') + track.body.item.artists.map(a => a.name).join(', ')
+          ));
         }
+      } else {
+        console.log(formatError('Kein Track wird derzeit abgespielt'));
       }
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
