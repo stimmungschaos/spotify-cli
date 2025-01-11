@@ -20,11 +20,54 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Token-Datei im Home-Verzeichnis
+// Pfade für Konfiguration und Token
+const CONFIG_PATH = path.join(
+  process.env.APPDATA || process.env.HOME || process.env.USERPROFILE,
+  '.spotify-cli-config.json'
+);
+
 const TOKEN_PATH = path.join(
   process.env.APPDATA || process.env.HOME || process.env.USERPROFILE,
   '.spotify-cli-tokens.json'
 );
+
+// Config-Management
+function loadConfig() {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      const data = fs.readFileSync(CONFIG_PATH, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Fehler beim Laden der Config:', error);
+  }
+  return { debug: false, envPath: null };
+}
+
+function saveConfig(config) {
+  try {
+    // Stelle sicher, dass das Verzeichnis existiert
+    const configDir = path.dirname(CONFIG_PATH);
+    fs.mkdirSync(configDir, { recursive: true });
+    
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Fehler beim Speichern der Config:', error);
+    return false;
+  }
+}
+
+// Debug-Funktion mit Cache
+let configCache = null;
+function debug(message) {
+  if (configCache === null) {
+    configCache = loadConfig();
+  }
+  if (configCache.debug) {
+    console.log('Debug:', message);
+  }
+}
 
 // Funktion zum Suchen der .env Datei
 function lookupEnv() {
@@ -63,6 +106,24 @@ const spotifyApi = new SpotifyWebApi({
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
   redirectUri: process.env.REDIRECT_URI
 });
+
+const formatOutput = (title, content) => {
+  return boxen(chalk.bold(title) + '\n' + content, {
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'cyan'
+  });
+};
+
+const formatError = (message) => {
+  return boxen(chalk.red('Error: ') + message, {
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'red'
+  });
+};
 
 // Token-Management Funktionen
 async function saveTokens(tokens) {
@@ -249,68 +310,6 @@ async function authenticate() {
       setTimeout(checkForTokens, 1000);
     });
   });
-}
-
-const formatOutput = (title, content) => {
-  return boxen(chalk.bold(title) + '\n' + content, {
-    padding: 1,
-    margin: 1,
-    borderStyle: 'round',
-    borderColor: 'cyan'
-  });
-};
-
-const formatError = (message) => {
-  return boxen(chalk.red('Error: ') + message, {
-    padding: 1,
-    margin: 1,
-    borderStyle: 'round',
-    borderColor: 'red'
-  });
-};
-
-// Config-Datei im Home-Verzeichnis
-const CONFIG_PATH = path.join(
-  process.env.APPDATA || process.env.HOME || process.env.USERPROFILE,
-  '.spotify-cli-config.json'
-);
-
-// Debug-Funktion mit Cache
-let configCache = null;
-function debug(message) {
-  if (configCache === null) {
-    configCache = loadConfig();
-  }
-  if (configCache.debug) {
-    console.log('Debug:', message);
-  }
-}
-
-// Config-Management
-function loadConfig() {
-  try {
-    if (fs.existsSync(CONFIG_PATH)) {
-      const data = fs.readFileSync(CONFIG_PATH, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Fehler beim Laden der Config:', error);
-  }
-  return { debug: false, envPath: null };
-}
-
-function saveConfig(config) {
-  try {
-    // Stelle sicher, dass das Verzeichnis existiert
-    const configDir = path.dirname(CONFIG_PATH);
-    fs.mkdirSync(configDir, { recursive: true });
-    
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-    return true;
-  } catch (error) {
-    console.error('Fehler beim Speichern der Config:', error);
-    return false;
-  }
 }
 
 // Config Command
