@@ -32657,12 +32657,6 @@ async function isTokenExpired() {
 // Aktualisierte refreshAccessToken Funktion
 async function refreshAccessToken() {
   try {
-    // Prüfe erst, ob der Token wirklich abgelaufen ist
-    if (!await isTokenExpired()) {
-      debug('Token ist noch gültig');
-      return true;
-    }
-
     debug('Token ist abgelaufen, erneuere...');
     const data = await spotifyApi.refreshAccessToken();
     const tokens = {
@@ -32687,7 +32681,7 @@ async function refreshAccessToken() {
     } catch (e) {
       // Ignoriere Fehler beim Löschen
     }
-    return false;
+    throw error; // Werfe den Fehler weiter, damit er behandelt werden kann
   }
 }
 
@@ -32697,10 +32691,9 @@ async function withTokenRefresh(apiCall) {
     return await apiCall();
   } catch (error) {
     if (error.message === 'The access token expired') {
-      if (await refreshAccessToken()) {
-        // Versuche den API-Aufruf erneut
-        return await apiCall();
-      }
+      await refreshAccessToken();
+      // Versuche den API-Aufruf erneut
+      return await apiCall();
     }
     throw error;
   }
@@ -32790,6 +32783,28 @@ program
   .action((key, value, options) => {
     const config = loadConfig();
     
+    // Liste der erlaubten Konfigurationsschlüssel
+    const validKeys = ['debug', 'env'];
+    
+    if (!validKeys.includes(key)) {
+      console.error(formatError(`Ungültiger Konfigurationsschlüssel: ${key}`));
+      console.log(boxen(
+        source.yellow('Verfügbare Konfigurationsschlüssel:\n\n') +
+        source.cyan('env:') + '   Pfad zur .env Datei konfigurieren\n' +
+        '      Beispiel: spotify-cli config env /pfad/zu/.env\n' +
+        '      Entfernen: spotify-cli config env -r\n\n' +
+        source.cyan('debug:') + ' Debug-Modus aktivieren/deaktivieren\n' +
+        '      Beispiel: spotify-cli config debug on\n',
+        {
+          padding: 1,
+          margin: 1,
+          borderStyle: 'round',
+          borderColor: 'yellow'
+        }
+      ));
+      return;
+    }
+
     if (options.remove) {
       if (key === 'env') {
         delete config.envPath;
@@ -32885,25 +32900,29 @@ program.on('--help', () => {
 program
   .command('play')
   .description('Wiedergabe starten oder bestimmten Song abspielen')
-  .argument('[query]', 'Suchbegriff für einen Song (optional)')
-  .action(async (query, options) => {
+  .argument('[query...]', 'Suchbegriff für einen Song (optional)')
+  .action(async (query) => {
     try {
       await authenticate();
 
-      if (!query) {
+      if (!query || query.length === 0) {
         // Normale Wiedergabe fortsetzen
         await withTokenRefresh(() => spotifyApi.play());
         console.log(formatOutput('Wiedergabe', source.green('▶️ Wiedergabe gestartet')));
         return;
       }
 
+      // Verbinde die Suchbegriffe zu einem String
+      const searchQuery = query.join(' ');
+      debug('Suche nach: ' + searchQuery);
+
       // Suche nach dem Song
       const searchResult = await withTokenRefresh(() => 
-        spotifyApi.searchTracks(query, { limit: 1 })
+        spotifyApi.searchTracks(searchQuery, { limit: 1 })
       );
 
       if (searchResult.body.tracks.items.length === 0) {
-        console.log(formatError(`Kein Track gefunden für: ${query}`));
+        console.log(formatError(`Kein Track gefunden für: ${searchQuery}`));
         return;
       }
 
@@ -32918,6 +32937,17 @@ program
         source.gray('von ') + track.artists.map(a => a.name).join(', ')
       ));
     } catch (error) {
+      if (error.message === 'The access token expired') {
+        // Versuche Token zu erneuern und den Befehl erneut auszuführen
+        try {
+          await refreshAccessToken();
+          // Rekursiver Aufruf mit den gleichen Argumenten
+          return program.commands.find(cmd => cmd.name() === 'play').action(query);
+        } catch (refreshError) {
+          console.error(formatError('Fehler bei der Token-Erneuerung. Bitte erneut authentifizieren.'));
+          return;
+        }
+      }
       console.error(formatError(error.message));
     }
   });
@@ -32929,9 +32959,9 @@ program
     try {
       await authenticate();
       await spotifyApi.pause();
-      console.log('⏸️ Wiedergabe pausiert');
+      console.log(formatOutput('Wiedergabe', source.yellow('⏸️ Wiedergabe pausiert')));
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -32943,9 +32973,18 @@ program
     try {
       await authenticate();
       await spotifyApi.skipToNext();
-      console.log('⏭️ Nächster Track');
+      const track = await spotifyApi.getMyCurrentPlayingTrack();
+      if (track.body && track.body.item) {
+        console.log(formatOutput('Nächster Track', 
+          source.green('⏭️ Spiele jetzt:\n') +
+          source.bold(track.body.item.name) + '\n' +
+          source.gray('von ') + track.body.item.artists.map(a => a.name).join(', ')
+        ));
+      } else {
+        console.log(formatOutput('Nächster Track', source.green('⏭️ Zum nächsten Track gewechselt')));
+      }
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -32957,9 +32996,18 @@ program
     try {
       await authenticate();
       await spotifyApi.skipToPrevious();
-      console.log('⏮️ Vorheriger Track');
+      const track = await spotifyApi.getMyCurrentPlayingTrack();
+      if (track.body && track.body.item) {
+        console.log(formatOutput('Vorheriger Track', 
+          source.green('⏮️ Spiele jetzt:\n') +
+          source.bold(track.body.item.name) + '\n' +
+          source.gray('von ') + track.body.item.artists.map(a => a.name).join(', ')
+        ));
+      } else {
+        console.log(formatOutput('Vorheriger Track', source.green('⏮️ Zum vorherigen Track gewechselt')));
+      }
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -33036,9 +33084,13 @@ program
       const state = await spotifyApi.getMyCurrentPlaybackState();
       const newState = !state.body.shuffle_state;
       await spotifyApi.setShuffle(newState);
-      console.log(`🔀 Zufallswiedergabe ${newState ? 'aktiviert' : 'deaktiviert'}`);
+      console.log(formatOutput('Zufallswiedergabe', 
+        newState 
+          ? source.green('🔀 Zufallswiedergabe aktiviert')
+          : source.yellow('🔀 Zufallswiedergabe deaktiviert')
+      ));
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -33050,9 +33102,21 @@ program
     try {
       await authenticate();
       await spotifyApi.setRepeat(mode);
-      console.log(`🔁 Wiederholung: ${mode}`);
+      const modeIcons = {
+        track: '🔂',
+        context: '🔁',
+        off: '➡️'
+      };
+      const modeNames = {
+        track: 'Track wiederholen',
+        context: 'Playlist/Album wiederholen',
+        off: 'Wiederholung aus'
+      };
+      console.log(formatOutput('Wiederholung', 
+        `${modeIcons[mode]} ${source.green(modeNames[mode])}`
+      ));
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -33186,15 +33250,28 @@ program
   });
 
 program
-  .command('transfer <deviceId>')
+  .command('transfer')
   .description('Wiedergabe auf anderes Gerät übertragen')
+  .argument('<deviceId>', 'ID des Zielgeräts')
   .action(async (deviceId) => {
     try {
       await authenticate();
+      const devices = await spotifyApi.getMyDevices();
+      const targetDevice = devices.body.devices.find(d => d.id === deviceId);
+      
+      if (!targetDevice) {
+        console.log(formatError(`Gerät mit ID ${deviceId} nicht gefunden`));
+        return;
+      }
+
       await spotifyApi.transferMyPlayback([deviceId]);
-      console.log('📱 Wiedergabe übertragen');
+      console.log(formatOutput('Geräteübertragung', 
+        source.green(`📱 Wiedergabe übertragen auf:\n`) +
+        source.bold(targetDevice.name) + '\n' +
+        source.gray(`Typ: ${targetDevice.type}`)
+      ));
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 
@@ -33210,14 +33287,24 @@ program
         const isSaved = await spotifyApi.containsMySavedTracks([id]);
         if (isSaved.body[0]) {
           await spotifyApi.removeFromMySavedTracks([id]);
-          console.log('💔 Track aus deinen Likes entfernt');
+          console.log(formatOutput('Like', 
+            source.red('💔 Aus deinen Likes entfernt:\n') +
+            source.bold(track.body.item.name) + '\n' +
+            source.gray('von ') + track.body.item.artists.map(a => a.name).join(', ')
+          ));
         } else {
           await spotifyApi.addToMySavedTracks([id]);
-          console.log('❤️ Track zu deinen Likes hinzugefügt');
+          console.log(formatOutput('Like', 
+            source.green('❤️ Zu deinen Likes hinzugefügt:\n') +
+            source.bold(track.body.item.name) + '\n' +
+            source.gray('von ') + track.body.item.artists.map(a => a.name).join(', ')
+          ));
         }
+      } else {
+        console.log(formatError('Kein Track wird derzeit abgespielt'));
       }
     } catch (error) {
-      console.error('Fehler:', error.message);
+      console.error(formatError(error.message));
     }
   });
 

@@ -28,7 +28,7 @@ Maintainer: Linus <stimmungschaos@chaosly.de>
 Description: Ein CLI-Tool für Spotify
  Ermöglicht die Steuerung von Spotify über die Kommandozeile
  mit Funktionen wie Play, Pause, Skip und mehr.
-Depends: nodejs (>= 20.0.0)
+
 
 EOL
 
